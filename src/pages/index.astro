@@ -231,6 +231,28 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
                               </span>
                             )}
                           </div>
+                          <div class="signal-history" aria-label={`${label} history`}>
+                            <span class="history-item">
+                              <span class="history-label">Last good</span>
+                              <a
+                                class="muted-link"
+                                data-evidence-good
+                                aria-label={`${label} last known good evidence`}
+                              >
+                                No record
+                              </a>
+                            </span>
+                            <span class="history-item">
+                              <span class="history-label">Last failure</span>
+                              <a
+                                class="muted-link"
+                                data-evidence-failure
+                                aria-label={`${label} most recent failure evidence`}
+                              >
+                                No record
+                              </a>
+                            </span>
+                          </div>
                         </div>
                       ),
                     )}
@@ -353,6 +375,14 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
       return "Observed";
     };
 
+    const formatEventDate = (value) => {
+      if (!value) return "No record";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime())
+        ? "Recorded"
+        : date.toISOString().replace("T", " ").slice(0, 19) + "Z";
+    };
+
     const setStatus = (element, status) => {
       if (!element) return;
       element.className = `${element.className
@@ -388,6 +418,32 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
         link.removeAttribute("href");
         link.classList.add("muted-link");
       }
+
+      const setHistory = (historyElement, record, kind) => {
+        if (!historyElement) return;
+        const href = record?.packageUrl ?? record?.artifactUrl ?? record?.sourceUrl;
+        historyElement.textContent = record
+          ? `${kind} · ${formatEventDate(record.observedAt)}`
+          : "No record";
+        if (record && href && /^https:\/\//.test(href)) {
+          historyElement.setAttribute("href", href);
+          historyElement.classList.remove("muted-link");
+        } else {
+          historyElement.removeAttribute("href");
+          historyElement.classList.add("muted-link");
+        }
+      };
+
+      setHistory(
+        element.querySelector("[data-evidence-good]"),
+        evidence.lastKnownGood,
+        "Passed",
+      );
+      setHistory(
+        element.querySelector("[data-evidence-failure]"),
+        evidence.mostRecentFailure,
+        "Failed",
+      );
     };
 
     const updateDashboard = (dashboard) => {
