@@ -1,6 +1,10 @@
+export type ObservatoryPagesEnv = Env & {
+  GITHUB_WEBHOOK_SECRET: string;
+};
+
 export interface ObservatoryPagesContext {
   request: Request;
-  env: Env;
+  env: ObservatoryPagesEnv;
   next: () => Promise<Response>;
   params: Record<string, string | undefined>;
 }
