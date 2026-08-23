@@ -63,7 +63,7 @@ export const SERVICE_PROBES: ServiceProbe[] = [
   {
     id: "metaserver",
     name: "Atrinik metaserver",
-    url: "https://meta.atrinik.org/",
+    url: "https://classic.meta.atrinik.org/index.html",
     stack: "default",
     staleAfterSeconds: 1800,
   },
