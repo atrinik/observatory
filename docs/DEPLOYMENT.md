@@ -38,6 +38,9 @@ npx wrangler d1 migrations apply atrinik-observatory --remote -c wrangler.jsonc 
 
 Verify the coordinate and probe seed rows with a read-only query. A migration
 must be reviewed and applied before a deployment that relies on new columns.
+The forward migration `0002_update_metaserver_probe.sql` also aligns existing
+`metaserver` rows with the attached Classic directory artifact before the probe
+Worker is deployed.
 
 ## Pages project
 
