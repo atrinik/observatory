@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://observatory.atrinik.org/contracts/status.schema.json",
+  "title": "Atrinik Observatory status document",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "staleAfterSeconds",
+    "coordinates",
+    "services",
+    "summary"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": ["string", "null"], "format": "date-time" },
+    "staleAfterSeconds": { "type": "integer", "minimum": 1 },
+    "coordinates": { "type": "array", "items": { "$ref": "#/$defs/coordinate" } },
+    "services": { "type": "array", "items": { "$ref": "#/$defs/service" } },
+    "summary": {
+      "type": "object",
+      "required": ["total", "healthy", "attention", "stale", "unknown"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "healthy": { "type": "integer", "minimum": 0 },
+        "attention": { "type": "integer", "minimum": 0 },
+        "stale": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": ["passed", "failed", "cancelled", "running", "unknown", "stale"]
+    },
+    "coordinate": {
+      "type": "object",
+      "required": [
+        "id",
+        "repository",
+        "component",
+        "stack",
+        "generation",
+        "overall",
+        "build",
+        "release",
+        "package",
+        "deployment"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "repository": { "type": "string" },
+        "component": { "type": "string" },
+        "stack": { "enum": ["default", "classic"] },
+        "generation": { "enum": ["replacement", "classic", "shared"] },
+        "overall": { "$ref": "#/$defs/status" },
+        "build": { "$ref": "#/$defs/evidence" },
+        "release": { "$ref": "#/$defs/evidence" },
+        "package": { "$ref": "#/$defs/evidence" },
+        "deployment": { "$ref": "#/$defs/evidence" }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "status",
+        "lastObservedStatus",
+        "observedAt",
+        "ageSeconds",
+        "stale",
+        "latest",
+        "lastKnownGood",
+        "mostRecentFailure"
+      ],
+      "properties": {
+        "status": { "$ref": "#/$defs/status" },
+        "lastObservedStatus": { "type": ["string", "null"] },
+        "observedAt": { "type": ["string", "null"] },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "stale": { "type": "boolean" },
+        "latest": { "type": ["object", "null"] },
+        "lastKnownGood": { "type": ["object", "null"] },
+        "mostRecentFailure": { "type": ["object", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "service": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "url",
+        "stack",
+        "staleAfterSeconds",
+        "status",
+        "lastObservedStatus",
+        "observedAt",
+        "ageSeconds",
+        "stale",
+        "statusCode",
+        "responseMs",
+        "error"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "stack": { "enum": ["default", "classic"] },
+        "staleAfterSeconds": { "type": "integer", "minimum": 1 },
+        "status": { "$ref": "#/$defs/status" },
+        "lastObservedStatus": { "type": ["string", "null"] },
+        "observedAt": { "type": ["string", "null"] },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "stale": { "type": "boolean" },
+        "statusCode": { "type": ["integer", "null"] },
+        "responseMs": { "type": ["integer", "null"] },
+        "error": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

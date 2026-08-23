@@ -1,0 +1,89 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const canonical = new URL(
+  Astro.url.pathname,
+  Astro.site ?? "https://observatory.atrinik.org",
+);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="index,follow" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#07131e" />
+    <link rel="canonical" href={canonical} />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307131e'/%3E%3Cpath d='m32 8 19 24-19 24L13 32z' fill='%2375e7ff' fill-opacity='.82'/%3E%3Cpath d='m32 17 11 15-11 15-11-15z' fill='%2307131e'/%3E%3C/svg%3E"
+    />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to dashboard</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Atrinik Observatory home">
+          <span class="brand-mark" aria-hidden="true"><i></i></span>
+          <span class="brand-copy">
+            <span class="brand-name">Atrinik</span>
+            <span class="brand-subtitle">Observatory</span>
+          </span>
+        </a>
+        <nav aria-label="Primary navigation">
+          <a href="#dashboard">Dashboard</a>
+          <a href="#services">Services</a>
+          <a href="#about">About</a>
+        </nav>
+        <a
+          class="header-link"
+          href="https://github.com/atrinik/observatory"
+          aria-label="View Observatory on GitHub"
+        >
+          <span>Source</span><span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </header>
+    <main id="content"><slot /></main>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <a class="brand brand--footer" href="/" aria-label="Atrinik Observatory home">
+            <span class="brand-mark" aria-hidden="true"><i></i></span>
+            <span class="brand-copy">
+              <span class="brand-name">Atrinik</span>
+              <span class="brand-subtitle">Observatory</span>
+            </span>
+          </a>
+          <p class="footer-note">
+            A read-only view of delivery evidence. GitHub remains the authority for
+            logs, checks, releases, packages, and artifacts.
+          </p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/atrinik/atrinik/blob/main/components.json"
+            >Workspace manifest</a
+          >
+          <a href="https://github.com/atrinik/observatory/issues">Issues</a>
+          <a href="https://github.com/atrinik/observatory/blob/main/docs/OPERATIONS.md"
+            >Operator docs</a
+          >
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>MIT-licensed source · No dashboard controls or mutation paths</span>
+        <span>Built for the Atrinik community</span>
+      </div>
+    </footer>
+  </body>
+</html>

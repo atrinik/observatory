@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "provider": "cloudflare-workers",
+  "worker": "atrinik-observatory-probes",
+  "repository": "atrinik/observatory",
+  "entrypoint": "src/probe-worker.ts",
+  "productionEnvironment": "production",
+  "previewEnvironment": "preview",
+  "cron": "*/5 * * * *",
+  "productionDatabase": "atrinik-observatory",
+  "previewDatabase": "atrinik-observatory-preview",
+  "responseBodyPolicy": "never persist probe response bodies",
+  "rollback": "wrangler rollback to the last verified Worker version"
+}
