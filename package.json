@@ -1,0 +1,48 @@
+{
+  "name": "@atrinik/observatory",
+  "version": "0.0.0-development",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.18.1 <25",
+    "npm": ">=11.16.0 <12"
+  },
+  "packageManager": "npm@11.16.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "types:generate": "wrangler types pages-configuration.d.ts -c wrangler.jsonc && wrangler types probe-configuration.d.ts -c wrangler.probes.jsonc",
+    "types:check": "wrangler types pages-configuration.d.ts -c wrangler.jsonc --check && wrangler types probe-configuration.d.ts -c wrangler.probes.jsonc --check",
+    "typecheck": "astro check && tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run format:check && npm run types:generate && npm run typecheck && npm test",
+    "build:check": "npm run check && npm run build",
+    "pages:build": "npm run build && wrangler pages functions build functions --outdir .wrangler/functions --project-directory . --build-output-directory dist --output-routes-path dist/_routes.json && node scripts/prepare-pages.mjs",
+    "pages:dev": "npm run pages:build && wrangler pages dev dist",
+    "db:migrate:local": "wrangler d1 migrations apply atrinik-observatory-local --local -c wrangler.jsonc",
+    "deploy:dry-run": "npm run pages:build && wrangler deploy --dry-run -c wrangler.probes.jsonc --env preview && node scripts/validate-deployment.mjs",
+    "deploy:pages": "npm run pages:build && wrangler pages deploy dist --project-name atrinik-observatory",
+    "deploy:probes": "wrangler deploy -c wrangler.probes.jsonc --env production",
+    "deploy:production": "npm run deploy:pages && npm run deploy:probes"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.28.1": true,
+    "fsevents": false,
+    "workerd@1.20260811.1": true
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/node": "26.2.0",
+    "astro": "7.2.0",
+    "prettier": "3.9.6",
+    "prettier-plugin-astro": "0.14.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.123.0"
+  }
+}

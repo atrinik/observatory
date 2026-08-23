@@ -1,0 +1,35 @@
+# Observatory repository guide
+
+## Scope
+
+This repository owns the read-only Observatory dashboard, its Pages Functions,
+D1 migrations, scheduled probe Worker, tests, and operator documentation. The
+Atrinik wrapper owns checkout and profile registration in `atrinik/atrinik`;
+change that repository only through a separately scoped wrapper delivery.
+
+## Guardrails
+
+- GitHub is authoritative for workflow logs, checks, releases, packages, and
+  artifacts. Store normalized summaries and links, never large raw payloads.
+- Missing observations are `unknown`; observations older than the configured
+  threshold are `stale`. Neither is healthy.
+- Webhook ingestion verifies HMAC signatures, records delivery IDs, and appends
+  records. Ordering is derived from event timestamps, so replays cannot make a
+  newer state look old.
+- The dashboard exposes no mutation controls. Keep ingestion and operator
+  procedures separate from public UI actions.
+- Never commit Cloudflare IDs that are not explicitly provisioned, tokens,
+  secrets, private data, or `.dev.vars`.
+
+## Validation
+
+```sh
+npm ci
+npm run check
+npm run build
+npm run deploy:dry-run
+```
+
+When changing a migration, also apply it to a local D1 database and test a
+signed webhook fixture. When changing Cloudflare configuration, validate both
+the Pages and probe Worker environments and update `docs/DEPLOYMENT.md`.

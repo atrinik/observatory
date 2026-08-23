@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "provider": "cloudflare-pages",
+  "project": "atrinik-observatory",
+  "repository": "atrinik/observatory",
+  "productionBranch": "main",
+  "buildCommand": "npm ci && npm run build",
+  "outputDirectory": "dist",
+  "functions": true,
+  "routes": ["/api/status", "/api/healthz", "/api/github/webhook"],
+  "preview": {
+    "source": "cloudflare-git-integration",
+    "branches": "all-non-production",
+    "database": "atrinik-observatory-preview",
+    "webhook": "disabled",
+    "robots": "provider-managed-noindex"
+  },
+  "production": {
+    "database": "atrinik-observatory",
+    "webhook": "enabled-with-secret-binding",
+    "postDeploySmokePath": "/api/healthz"
+  },
+  "secrets": ["GITHUB_WEBHOOK_SECRET"],
+  "noManualDashboardDeployment": true,
+  "rollback": "promote the last verified Pages deployment"
+}

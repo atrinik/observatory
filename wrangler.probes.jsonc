@@ -1,0 +1,69 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "atrinik-observatory-probes",
+  "main": "src/probe-worker.ts",
+  "compatibility_date": "2026-08-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atrinik-observatory-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": {
+    "OBSERVATORY_ENV": "local",
+    "PROBE_TIMEOUT_MS": "5000",
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *"],
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": false,
+      "persist": true,
+    },
+    "traces": {
+      "enabled": false,
+    },
+  },
+  "env": {
+    "preview": {
+      "name": "atrinik-observatory-probes-preview",
+      "workers_dev": true,
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "atrinik-observatory-preview",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "vars": {
+        "OBSERVATORY_ENV": "preview",
+        "PROBE_TIMEOUT_MS": "5000",
+      },
+    },
+    "production": {
+      "name": "atrinik-observatory-probes",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "atrinik-observatory",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "vars": {
+        "OBSERVATORY_ENV": "production",
+        "PROBE_TIMEOUT_MS": "5000",
+      },
+    },
+  },
+}

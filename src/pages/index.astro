@@ -1,0 +1,521 @@
+---
+import Base from "../layouts/Base.astro";
+import { emptyDashboard } from "../domain/aggregate";
+import { githubRepositoryUrl } from "../domain/components";
+import type {
+  DashboardCoordinate,
+  EvidenceSummary,
+  DisplayStatus,
+} from "../domain/types";
+
+const dashboard = emptyDashboard();
+const signalDefinitions = [
+  ["build", "Build", "The latest workflow or check evidence."],
+  ["release", "Release", "A GitHub release event, separate from builds."],
+  [
+    "package",
+    "Package",
+    "A release asset or package URL, never inferred from a build.",
+  ],
+  ["deployment", "Deploy", "The latest GitHub deployment status."],
+] as const;
+
+function statusLabel(status: DisplayStatus): string {
+  return status === "passed"
+    ? "Passed"
+    : status === "failed"
+      ? "Failed"
+      : status === "cancelled"
+        ? "Cancelled"
+        : status === "running"
+          ? "Running"
+          : status === "stale"
+            ? "Stale"
+            : "Unknown";
+}
+
+function statusClass(status: DisplayStatus): string {
+  return `status-${status}`;
+}
+
+function coordinateSignals(coordinate: DashboardCoordinate) {
+  return signalDefinitions.map(([key, label, description]) => ({
+    key,
+    label,
+    description,
+    evidence: coordinate[key],
+  }));
+}
+
+function evidenceHref(evidence: EvidenceSummary): string | null {
+  return evidence.latest?.sourceUrl ?? null;
+}
+
+const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
+---
+
+<Base
+  title="Atrinik Observatory · delivery evidence"
+  description="A read-only dashboard for Atrinik build, release, package, deployment, and public-service evidence."
+>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> Atrinik / Observatory</p>
+        <h1 id="hero-title">Evidence,<br /><em>not guesswork.</em></h1>
+        <p class="hero-lede">
+          One quiet surface for the signals that keep Atrinik moving: builds, releases,
+          packages, deployments, and the public services around them.
+        </p>
+        <div class="hero-badges" aria-label="Dashboard properties">
+          <span class="pill pill-blue"><span class="pulse-dot"></span> Read-only</span>
+          <span class="pill">GitHub-authoritative</span>
+          <span class="pill">No mutation controls</span>
+        </div>
+      </div>
+      <div class="hero-orbit" aria-hidden="true">
+        <div class="orbit orbit-one"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="orbit orbit-three"></div>
+        <div class="orbit-core"><span></span></div>
+        <span class="orbit-label orbit-label-top">BUILD</span>
+        <span class="orbit-label orbit-label-right">RELEASE</span>
+        <span class="orbit-label orbit-label-bottom">SERVICE</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="dashboard-shell" id="dashboard" aria-labelledby="dashboard-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Live signal map</p>
+        <h2 id="dashboard-title">The workspace at a glance</h2>
+      </div>
+      <p class="sync-state" id="api-state" data-fetch-state="idle">
+        <span class="sync-dot"></span> Waiting for the first observation
+      </p>
+    </div>
+
+    <div class="summary-grid" aria-label="Workspace summary">
+      <article class="summary-card summary-card-primary">
+        <p class="summary-label">Coordinates tracked</p>
+        <p class="summary-number" data-summary="total">{dashboard.summary.total}</p>
+        <p class="summary-caption">Across replacement and Classic stacks</p>
+      </article>
+      <article class="summary-card">
+        <p class="summary-label">Fully evidenced</p>
+        <p class="summary-number" data-summary="healthy">{dashboard.summary.healthy}</p>
+        <p class="summary-caption summary-caption-muted">Every tracked signal passed</p>
+      </article>
+      <article class="summary-card summary-card-warning">
+        <p class="summary-label">Needs attention</p>
+        <p class="summary-number" data-summary="attention">
+          {dashboard.summary.attention}
+        </p>
+        <p class="summary-caption summary-caption-muted">Failures stay visible</p>
+      </article>
+      <article class="summary-card summary-card-muted">
+        <p class="summary-label">Unknown / stale</p>
+        <p class="summary-number" data-summary="unknown">
+          {dashboard.summary.unknown + dashboard.summary.stale}
+        </p>
+        <p class="summary-caption summary-caption-muted">
+          Missing data never looks healthy
+        </p>
+      </article>
+    </div>
+
+    <div class="stack-switcher" role="tablist" aria-label="Stack view">
+      <button
+        class="stack-tab is-active"
+        type="button"
+        role="tab"
+        aria-selected="true"
+        aria-controls="stack-default"
+        data-stack-tab="default"
+      >
+        <span class="tab-mark tab-mark-blue"></span> Replacement / default
+      </button>
+      <button
+        class="stack-tab"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="stack-classic"
+        data-stack-tab="classic"
+      >
+        <span class="tab-mark tab-mark-gold"></span> Classic
+      </button>
+    </div>
+
+    {
+      (["default", "classic"] as const).map((stack) => {
+        const coordinates = dashboard.coordinates.filter(
+          (coordinate) => coordinate.stack === stack,
+        );
+        return (
+          <section
+            id={`stack-${stack}`}
+            class="stack-panel"
+            data-stack-panel={stack}
+            aria-labelledby={`stack-${stack}-title`}
+            hidden={stack !== "default"}
+          >
+            <div class="stack-heading">
+              <div>
+                <p class="stack-kicker">
+                  {stack === "default"
+                    ? "M1 / replacement generation"
+                    : "Playable / classic generation"}
+                </p>
+                <h3 id={`stack-${stack}-title`}>
+                  {stack === "default" ? "Replacement stack" : "Classic stack"}
+                </h3>
+              </div>
+              <p class="stack-description">
+                {stack === "default"
+                  ? "Rust, Go, Protobuf, Astro, and the shared foundations around them."
+                  : "The C17/CMake playable line and its isolated playtester support."}
+              </p>
+            </div>
+            <div class="coordinate-grid">
+              {coordinates.map((coordinate) => (
+                <article class="coordinate-card" data-coordinate-id={coordinate.id}>
+                  <header class="coordinate-header">
+                    <div>
+                      <p class="coordinate-component">{coordinate.component}</p>
+                      <a
+                        class="coordinate-repository"
+                        href={githubRepositoryUrl(coordinate.repository)}
+                      >
+                        {coordinate.repository}
+                        <span aria-hidden="true">↗</span>
+                      </a>
+                    </div>
+                    <span
+                      class={`status-badge ${statusClass(coordinate.overall)}`}
+                      data-overall-status
+                    >
+                      <span class="status-icon" aria-hidden="true" />
+                      {statusLabel(coordinate.overall)}
+                    </span>
+                  </header>
+                  <div class="signal-grid">
+                    {coordinateSignals(coordinate).map(
+                      ({ key, label, description, evidence }) => (
+                        <div class="signal" data-evidence-kind={key}>
+                          <div class="signal-topline">
+                            <span class="signal-label">{label}</span>
+                            <span
+                              class={`signal-status ${statusClass(evidence.status)}`}
+                              data-evidence-status
+                            >
+                              {statusLabel(evidence.status)}
+                            </span>
+                          </div>
+                          <p class="signal-description">{description}</p>
+                          <div class="signal-meta">
+                            <span data-evidence-observed>
+                              {evidence.observedAt ? "Observed" : "No observation"}
+                            </span>
+                            {evidenceHref(evidence) ? (
+                              <a
+                                data-evidence-link
+                                href={evidenceHref(evidence) ?? undefined}
+                              >
+                                View evidence ↗
+                              </a>
+                            ) : (
+                              <span class="muted-link" data-evidence-link>
+                                No link yet
+                              </span>
+                            )}
+                          </div>
+                          <div class="signal-history" aria-label={`${label} history`}>
+                            <span class="history-item">
+                              <span class="history-label">Last good</span>
+                              <a
+                                class="muted-link"
+                                data-evidence-good
+                                aria-label={`${label} last known good evidence`}
+                              >
+                                No record
+                              </a>
+                            </span>
+                            <span class="history-item">
+                              <span class="history-label">Last failure</span>
+                              <a
+                                class="muted-link"
+                                data-evidence-failure
+                                aria-label={`${label} most recent failure evidence`}
+                              >
+                                No record
+                              </a>
+                            </span>
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  <footer class="coordinate-footer">
+                    <span class="generation-tag">
+                      {coordinate.generation} coordinate
+                    </span>
+                    <span data-coordinate-ref>
+                      {coordinate.build.latest?.ref ?? "Awaiting GitHub evidence"}
+                    </span>
+                  </footer>
+                </article>
+              ))}
+            </div>
+          </section>
+        );
+      })
+    }
+  </section>
+
+  <section class="services-shell" id="services" aria-labelledby="services-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Public reachability</p>
+        <h2 id="services-title">A small watch on the outside world</h2>
+      </div>
+      <p class="section-note">Probes are observations, not guarantees.</p>
+    </div>
+    <div class="service-grid">
+      {
+        dashboard.services.map((service) => (
+          <article class="service-card" data-service-id={service.id}>
+            <div class="service-icon" aria-hidden="true">
+              <span />
+            </div>
+            <div class="service-body">
+              <div class="service-title-row">
+                <h3>{service.name}</h3>
+                <span
+                  class={`status-badge ${statusClass(service.status)}`}
+                  data-service-status
+                >
+                  <span class="status-icon" aria-hidden="true" />
+                  {statusLabel(service.status)}
+                </span>
+              </div>
+              <a class="service-url" href={service.url}>
+                {service.url}
+                <span aria-hidden="true">↗</span>
+              </a>
+              <p class="service-observation" data-service-observed>
+                No probe observation yet. Missing data is unknown.
+              </p>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="about-shell" id="about" aria-labelledby="about-title">
+    <div class="about-panel">
+      <div>
+        <p class="eyebrow">How to read this</p>
+        <h2 id="about-title">A green light has a narrow meaning.</h2>
+      </div>
+      <div class="about-copy">
+        <p>
+          Observatory keeps build, release, package, deployment, and service evidence
+          separate. A passing workflow can be followed by a failed release, a missing
+          package, or a stale probe. Those are different facts, and the dashboard
+          refuses to blur them together.
+        </p>
+        <p>
+          Every detailed link returns to the originating GitHub run, check, release,
+          asset, or deployment. The dashboard stores compact normalized summaries and
+          delivery identifiers; it does not mirror logs or large artifacts, and it
+          cannot rerun, cancel, publish, deploy, or mutate them.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <script
+    type="application/json"
+    id="initial-status"
+    is:inline
+    set:html={safeInitialStatus}
+  />
+  <script is:inline>
+    const initialElement = document.querySelector("#initial-status");
+    const apiState = document.querySelector("#api-state");
+    const initialStatus = initialElement?.textContent
+      ? JSON.parse(initialElement.textContent)
+      : null;
+
+    const statusLabel = (status) =>
+      status === "passed"
+        ? "Passed"
+        : status === "failed"
+          ? "Failed"
+          : status === "cancelled"
+            ? "Cancelled"
+            : status === "running"
+              ? "Running"
+              : status === "stale"
+                ? "Stale"
+                : "Unknown";
+
+    const statusClass = (status) => `status-${status}`;
+    const formatObserved = (value, ageSeconds) => {
+      if (!value) return "No observation";
+      if (typeof ageSeconds === "number") {
+        if (ageSeconds < 60) return "Observed just now";
+        if (ageSeconds < 3600) return `Observed ${Math.floor(ageSeconds / 60)}m ago`;
+        if (ageSeconds < 86400) return `Observed ${Math.floor(ageSeconds / 3600)}h ago`;
+        return `Observed ${Math.floor(ageSeconds / 86400)}d ago`;
+      }
+      return "Observed";
+    };
+
+    const formatEventDate = (value) => {
+      if (!value) return "No record";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime())
+        ? "Recorded"
+        : date.toISOString().replace("T", " ").slice(0, 19) + "Z";
+    };
+
+    const setStatus = (element, status) => {
+      if (!element) return;
+      element.className = `${element.className
+        .split(" ")
+        .filter((name) => !name.startsWith("status-"))
+        .join(" ")} ${statusClass(status)}`;
+      const text = element.querySelector(".status-icon")?.nextSibling;
+      if (text) text.textContent = statusLabel(status);
+      else element.textContent = statusLabel(status);
+    };
+
+    const setEvidence = (element, evidence) => {
+      const statusElement = element.querySelector("[data-evidence-status]");
+      setStatus(statusElement, evidence.status);
+      const observedElement = element.querySelector("[data-evidence-observed]");
+      if (observedElement) {
+        observedElement.textContent = formatObserved(
+          evidence.observedAt,
+          evidence.ageSeconds,
+        );
+      }
+      const link = element.querySelector("[data-evidence-link]");
+      const href =
+        evidence.latest?.packageUrl ??
+        evidence.latest?.artifactUrl ??
+        evidence.latest?.sourceUrl;
+      if (link && href && /^https:\/\//.test(href)) {
+        link.textContent = "View evidence ↗";
+        link.setAttribute("href", href);
+        link.classList.remove("muted-link");
+      } else if (link) {
+        link.textContent = "No link yet";
+        link.removeAttribute("href");
+        link.classList.add("muted-link");
+      }
+
+      const setHistory = (historyElement, record, kind) => {
+        if (!historyElement) return;
+        const href = record?.packageUrl ?? record?.artifactUrl ?? record?.sourceUrl;
+        historyElement.textContent = record
+          ? `${kind} · ${formatEventDate(record.observedAt)}`
+          : "No record";
+        if (record && href && /^https:\/\//.test(href)) {
+          historyElement.setAttribute("href", href);
+          historyElement.classList.remove("muted-link");
+        } else {
+          historyElement.removeAttribute("href");
+          historyElement.classList.add("muted-link");
+        }
+      };
+
+      setHistory(
+        element.querySelector("[data-evidence-good]"),
+        evidence.lastKnownGood,
+        "Passed",
+      );
+      setHistory(
+        element.querySelector("[data-evidence-failure]"),
+        evidence.mostRecentFailure,
+        "Failed",
+      );
+    };
+
+    const updateDashboard = (dashboard) => {
+      for (const key of ["total", "healthy", "attention"]) {
+        const element = document.querySelector(`[data-summary="${key}"]`);
+        if (element) element.textContent = String(dashboard.summary[key]);
+      }
+      const unknown = document.querySelector('[data-summary="unknown"]');
+      if (unknown)
+        unknown.textContent = String(
+          dashboard.summary.unknown + dashboard.summary.stale,
+        );
+
+      for (const coordinate of dashboard.coordinates) {
+        const card = document.querySelector(`[data-coordinate-id="${coordinate.id}"]`);
+        if (!card) continue;
+        setStatus(card.querySelector("[data-overall-status]"), coordinate.overall);
+        for (const key of ["build", "release", "package", "deployment"]) {
+          const signal = card.querySelector(`[data-evidence-kind="${key}"]`);
+          if (signal) setEvidence(signal, coordinate[key]);
+        }
+        const ref = card.querySelector("[data-coordinate-ref]");
+        if (ref)
+          ref.textContent = coordinate.build.latest?.ref ?? "Awaiting GitHub evidence";
+      }
+
+      for (const service of dashboard.services) {
+        const card = document.querySelector(`[data-service-id="${service.id}"]`);
+        if (!card) continue;
+        setStatus(card.querySelector("[data-service-status]"), service.status);
+        const observed = card.querySelector("[data-service-observed]");
+        if (observed) {
+          const detail = service.statusCode
+            ? `${service.statusCode} · ${service.responseMs ?? "—"}ms`
+            : (service.error ?? "No probe observation yet. Missing data is unknown.");
+          observed.textContent = `${formatObserved(service.observedAt, service.ageSeconds)} · ${detail}`;
+        }
+      }
+    };
+
+    const setApiState = (message, state) => {
+      if (!apiState) return;
+      apiState.dataset.fetchState = state;
+      apiState.innerHTML = `<span class="sync-dot"></span> ${message}`;
+    };
+
+    if (initialStatus) updateDashboard(initialStatus);
+    fetch("/api/status", { headers: { accept: "application/json" } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`status ${response.status}`);
+        return response.json();
+      })
+      .then((dashboard) => {
+        updateDashboard(dashboard);
+        setApiState("Updated from the Observatory API", "ready");
+      })
+      .catch(() => {
+        setApiState("API unavailable · showing the safe unknown state", "error");
+      });
+
+    for (const tab of document.querySelectorAll("[data-stack-tab]")) {
+      tab.addEventListener("click", () => {
+        const selected = tab.getAttribute("data-stack-tab");
+        for (const candidate of document.querySelectorAll("[data-stack-tab]")) {
+          const active = candidate === tab;
+          candidate.classList.toggle("is-active", active);
+          candidate.setAttribute("aria-selected", String(active));
+        }
+        for (const panel of document.querySelectorAll("[data-stack-panel]")) {
+          panel.hidden = panel.getAttribute("data-stack-panel") !== selected;
+        }
+      });
+    }
+  </script>
+</Base>
