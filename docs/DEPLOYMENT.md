@@ -65,6 +65,11 @@ npx wrangler pages secret put GITHUB_WEBHOOK_SECRET --project-name atrinik-obser
 Use a freshly generated value shared only with the GitHub webhook configuration.
 Never put it in `vars`, GitHub comments, or a command transcript.
 
+The Pages Wrangler configuration is intentionally limited to Pages-supported
+keys. Do not add the Worker-only `observability` or `secrets` configuration
+blocks to `wrangler.jsonc`; Pages validates that file separately. Configure
+the webhook secret with the Pages secret store command above.
+
 ## Probe Worker
 
 Connect the same repository to Workers Builds for
@@ -118,6 +123,6 @@ deployment. If probes fail after a Worker change, roll the Worker back to the
 last verified version. Do not roll back a D1 migration by editing history;
 create a forward migration after assessing retained observations.
 
-The initial repository change cannot create Cloudflare account resources or
-GitHub connections without operator credentials. Provisioning and connection
-are explicit handoff steps, not hidden side effects of validation.
+Repository changes do not create Cloudflare account resources or GitHub
+connections automatically. Provisioning and connection remain explicit,
+authorized operator steps rather than hidden side effects of validation.

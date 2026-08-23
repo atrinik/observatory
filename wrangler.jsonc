@@ -17,21 +17,6 @@
     "STALE_AFTER_SECONDS": "21600",
     "SERVICE_STALE_AFTER_SECONDS": "1800",
   },
-  "secrets": {
-    "required": ["GITHUB_WEBHOOK_SECRET"],
-  },
-  "observability": {
-    "enabled": true,
-    "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1,
-      "invocation_logs": false,
-      "persist": true,
-    },
-    "traces": {
-      "enabled": false,
-    },
-  },
   "env": {
     "preview": {
       "name": "atrinik-observatory-preview",
@@ -39,7 +24,7 @@
         {
           "binding": "DB",
           "database_name": "atrinik-observatory-preview",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "8e21bf32-ed2c-47d8-8df3-0f58346ef370",
           "migrations_dir": "migrations",
         },
       ],
@@ -55,7 +40,7 @@
         {
           "binding": "DB",
           "database_name": "atrinik-observatory",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "dd64e9e5-807c-4700-9b05-60eff63e3061",
           "migrations_dir": "migrations",
         },
       ],
