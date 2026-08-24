@@ -38,6 +38,18 @@ describe("initial stack view markup", () => {
     expect(source).toContain("data-detail-content");
   });
 
+  it("keeps the mockup's two-column evidence workspace hierarchy", () => {
+    expect(source).toContain("Delivery evidence at a glance");
+    expect(source).toContain('class="summary-icon summary-icon-tracked"');
+    expect(source).toContain('class="signal-legend"');
+    expect(source).toContain('class="dashboard-layout"');
+    expect(source).toContain('class="matrix-panel"');
+    expect(source).toContain('class="dashboard-rail"');
+    expect(source).toContain("href={githubRepositoryUrl(coordinate.repository)}");
+    expect(source).toContain("Public services");
+    expect(source).toContain("How to read this");
+  });
+
   it("keeps tab ARIA state and panel visibility synchronized on interaction", () => {
     expect(source).toContain(
       'candidate.setAttribute("aria-selected", String(active));',

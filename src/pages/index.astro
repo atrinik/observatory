@@ -48,6 +48,9 @@ function formatSummary(
 const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
 const initialStack = "classic" as "default" | "classic";
 const stackOrder = ["classic", "default"] as const;
+const initialCoordinate =
+  dashboard.coordinates.find((coordinate) => coordinate.stack === initialStack) ??
+  dashboard.coordinates[0];
 ---
 
 <Base
@@ -57,426 +60,487 @@ const stackOrder = ["classic", "default"] as const;
   <section class="hero compact-hero" aria-labelledby="hero-title">
     <div class="hero-inner">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="eyebrow-line"></span> Atrinik / Observatory</p>
-        <h1 id="hero-title">Evidence workspace</h1>
+        <h1 id="hero-title">Delivery evidence at a glance</h1>
         <p class="hero-lede">
-          A scan-first view of delivery evidence. GitHub remains authoritative; this
-          surface only keeps compact, read-only summaries and links.
+          Read-only signals across builds, releases, packages, deployments, and services
         </p>
-      </div>
-      <div class="hero-state" aria-label="Dashboard properties">
-        <span class="pill pill-blue"><span class="pulse-dot"></span> Read-only</span>
-        <span class="pill">GitHub-authoritative</span>
-        <p class="hero-state-note">
-          No rerun, cancel, publish, deploy, or mutation controls.
+        <p class="sync-state" id="api-state" data-fetch-state="idle">
+          <span class="sync-dot"></span> Waiting for the first observation
         </p>
       </div>
     </div>
   </section>
 
-  <section class="dashboard-shell" id="dashboard" aria-labelledby="dashboard-title">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Live signal map</p>
-        <h2 id="dashboard-title">The workspace at a glance</h2>
-      </div>
-      <p class="sync-state" id="api-state" data-fetch-state="idle">
-        <span class="sync-dot"></span> Waiting for the first observation
-      </p>
-    </div>
-
+  <section class="dashboard-shell" id="dashboard" aria-label="Delivery evidence">
     <div class="summary-grid" aria-label="Workspace summary">
       <article class="summary-card summary-card-primary">
-        <p class="summary-label">Coordinates tracked</p>
-        <p class="summary-number" data-summary="total">{dashboard.summary.total}</p>
-        <p class="summary-caption">Classic and replacement views</p>
+        <span class="summary-icon summary-icon-tracked" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Tracked</p>
+          <p class="summary-number">
+            <span data-summary="total">{dashboard.summary.total}</span>
+            <span class="summary-unit">coordinates</span>
+          </p>
+        </div>
       </article>
       <article class="summary-card">
-        <p class="summary-label">Fully evidenced</p>
-        <p class="summary-number" data-summary="healthy">{dashboard.summary.healthy}</p>
-        <p class="summary-caption summary-caption-muted">
-          Every applicable signal passed
-        </p>
+        <span class="summary-icon summary-icon-healthy" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Healthy</p>
+          <p class="summary-number">
+            <span data-summary="healthy">{dashboard.summary.healthy}</span>
+            <span class="summary-unit">signals</span>
+          </p>
+        </div>
       </article>
       <article class="summary-card summary-card-warning">
-        <p class="summary-label">Needs attention</p>
-        <p class="summary-number" data-summary="attention">
-          {dashboard.summary.attention}
-        </p>
-        <p class="summary-caption summary-caption-muted">
-          Failures and active work stay visible
-        </p>
+        <span class="summary-icon summary-icon-attention" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Attention</p>
+          <p class="summary-number">
+            <span data-summary="attention">{dashboard.summary.attention}</span>
+            <span class="summary-unit">signals</span>
+          </p>
+        </div>
       </article>
       <article class="summary-card summary-card-muted">
-        <p class="summary-label">Unknown / stale</p>
-        <p class="summary-number" data-summary="unknown">
-          {dashboard.summary.unknown + dashboard.summary.stale}
-        </p>
-        <p class="summary-caption summary-caption-muted">
-          Missing data never looks healthy
-        </p>
+        <span class="summary-icon summary-icon-unknown" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Unknown / stale</p>
+          <p class="summary-number">
+            <span data-summary="unknown"
+              >{dashboard.summary.unknown + dashboard.summary.stale}</span
+            >
+            <span class="summary-unit">signals</span>
+          </p>
+        </div>
       </article>
     </div>
 
-    <div class="workspace-controls">
-      <div class="stack-switcher" role="tablist" aria-label="Stack view">
-        <button
-          class:list={["stack-tab", { "is-active": initialStack === "classic" }]}
-          type="button"
-          role="tab"
-          id="stack-tab-classic"
-          aria-selected={initialStack === "classic" ? "true" : "false"}
-          aria-controls="stack-classic"
-          data-stack-tab="classic"
-        >
-          <span class="tab-mark tab-mark-gold"></span> Classic
-        </button>
-        <button
-          class:list={["stack-tab", { "is-active": initialStack === "default" }]}
-          type="button"
-          role="tab"
-          id="stack-tab-default"
-          aria-selected={initialStack === "default" ? "true" : "false"}
-          aria-controls="stack-default"
-          data-stack-tab="default"
-        >
-          <span class="tab-mark tab-mark-blue"></span> Replacement / default
-        </button>
-      </div>
-      <div class="filters" aria-label="Coordinate filters">
-        <label class="filter-search" for="coordinate-filter">
-          <span class="sr-only">Filter coordinates</span>
-          <input
-            id="coordinate-filter"
-            type="search"
-            placeholder="Filter repository or component"
-            autocomplete="off"
-            data-coordinate-filter
-          />
-        </label>
-        <div class="filter-buttons" role="group" aria-label="Evidence state filter">
-          <button
-            type="button"
-            class="filter-button is-active"
-            data-filter-status="all"
-            aria-pressed="true"
-          >
-            All
-          </button>
-          <button
-            type="button"
-            class="filter-button"
-            data-filter-status="issues"
-            aria-pressed="false"
-          >
-            Needs attention
-          </button>
-          <button
-            type="button"
-            class="filter-button"
-            data-filter-status="unknown"
-            aria-pressed="false"
-          >
-            Unknown / stale
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {
-      stackOrder.map((stack) => {
-        const coordinates = dashboard.coordinates.filter(
-          (coordinate) => coordinate.stack === stack,
-        );
-        return (
-          <section
-            id={`stack-${stack}`}
-            class="stack-panel"
-            role="tabpanel"
-            data-stack-panel={stack}
-            aria-labelledby={`stack-tab-${stack}`}
-            tabindex="0"
-            hidden={stack !== initialStack}
-          >
-            <div class="stack-heading">
-              <div>
-                <p class="stack-kicker">
-                  {stack === "default"
-                    ? "M1 / replacement generation"
-                    : "Playable / Classic generation"}
-                </p>
-                <h3 id={`stack-${stack}-title`}>
-                  {stack === "default" ? "Replacement stack" : "Classic stack"}
-                </h3>
-              </div>
-              <p class="stack-description">
-                {stack === "default"
-                  ? "Rust, Go, Protobuf, Astro, and shared foundations."
-                  : "The C17/CMake playable line and isolated playtester support."}
-              </p>
+    <div class="dashboard-layout">
+      <div class="matrix-panel">
+        <div class="workspace-controls">
+          <div class="stack-switcher" role="tablist" aria-label="Stack view">
+            <button
+              class:list={["stack-tab", { "is-active": initialStack === "classic" }]}
+              type="button"
+              role="tab"
+              id="stack-tab-classic"
+              aria-selected={initialStack === "classic" ? "true" : "false"}
+              aria-controls="stack-classic"
+              data-stack-tab="classic"
+            >
+              Classic
+            </button>
+            <button
+              class:list={["stack-tab", { "is-active": initialStack === "default" }]}
+              type="button"
+              role="tab"
+              id="stack-tab-default"
+              aria-selected={initialStack === "default" ? "true" : "false"}
+              aria-controls="stack-default"
+              data-stack-tab="default"
+            >
+              Next Generation
+            </button>
+          </div>
+          <div class="filters" aria-label="Coordinate filters">
+            <label class="filter-search" for="coordinate-filter">
+              <span class="sr-only">Filter coordinates</span>
+              <input
+                id="coordinate-filter"
+                type="search"
+                placeholder="Filter repositories"
+                autocomplete="off"
+                data-coordinate-filter
+              />
+            </label>
+            <div class="filter-buttons" role="group" aria-label="Evidence state filter">
+              <button
+                type="button"
+                class="filter-button is-active"
+                data-filter-status="all"
+                aria-pressed="true"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                class="filter-button"
+                data-filter-status="issues"
+                aria-pressed="false"
+              >
+                Needs attention
+              </button>
+              <button
+                type="button"
+                class="filter-button"
+                data-filter-status="unknown"
+                aria-pressed="false"
+              >
+                Unknown / stale
+              </button>
             </div>
+          </div>
+        </div>
 
-            <div class="matrix" role="table" aria-label={`${stack} evidence matrix`}>
-              <div class="matrix-header" role="row">
-                <span role="columnheader">Coordinate</span>
-                <span role="columnheader">Build</span>
-                <span role="columnheader">Release</span>
-                <span role="columnheader">Package</span>
-                <span role="columnheader">Deploy</span>
+        <div class="signal-legend" aria-label="Delivery signal status legend">
+          <span class="legend-title">Delivery signals</span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-passed" aria-hidden="true">✓</span>
+            Passed
+          </span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-attention" aria-hidden="true"
+              >!</span
+            >
+            Attention
+          </span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-unknown" aria-hidden="true">?</span
+            >
+            Unknown
+          </span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-not-tracked" aria-hidden="true"
+              >−</span
+            >
+            Not tracked
+          </span>
+        </div>
+
+        {
+          stackOrder.map((stack) => {
+            const coordinates = dashboard.coordinates.filter(
+              (coordinate) => coordinate.stack === stack,
+            );
+            return (
+              <section
+                id={`stack-${stack}`}
+                class="stack-panel"
+                role="tabpanel"
+                data-stack-panel={stack}
+                aria-labelledby={`stack-tab-${stack}`}
+                tabindex="0"
+                hidden={stack !== initialStack}
+              >
+                <div
+                  class="matrix"
+                  role="table"
+                  aria-label={`${stack} evidence matrix`}
+                >
+                  <div class="matrix-header" role="row">
+                    <span role="columnheader" class="matrix-stack-label">
+                      {stack === "default" ? "Next Generation" : "Classic stack"}
+                    </span>
+                    <span role="columnheader">Build</span>
+                    <span role="columnheader">Release</span>
+                    <span role="columnheader">Package</span>
+                    <span role="columnheader">Deploy</span>
+                  </div>
+                  <div class="matrix-body">
+                    {coordinates.map((coordinate) => (
+                      <article
+                        class="matrix-row"
+                        role="row"
+                        data-coordinate-id={coordinate.id}
+                        data-coordinate-status={coordinate.overall}
+                        data-coordinate-text={`${coordinate.component} ${coordinate.repository}`.toLowerCase()}
+                      >
+                        <div class="matrix-coordinate" role="cell">
+                          <button
+                            type="button"
+                            class="coordinate-select"
+                            data-coordinate-select={coordinate.id}
+                            aria-controls="coordinate-detail"
+                            aria-expanded="false"
+                          >
+                            <span class="coordinate-component">
+                              {coordinate.component}
+                            </span>
+                          </button>
+                          <a
+                            class="coordinate-repository"
+                            href={githubRepositoryUrl(coordinate.repository)}
+                          >
+                            {coordinate.repository} <span aria-hidden="true">↗</span>
+                          </a>
+                          <StatusIndicator
+                            status={coordinate.overall}
+                            context="overall"
+                          />
+                        </div>
+                        {coordinateSignals(coordinate).map(
+                          ({ key, label, evidence }) => (
+                            <div
+                              class="matrix-signal"
+                              role="cell"
+                              data-evidence-kind={key}
+                              data-column-label={label}
+                            >
+                              <StatusIndicator
+                                status={evidence.status}
+                                size="compact"
+                                context="evidence"
+                              />
+                              <span class="matrix-observed" data-evidence-observed>
+                                {evidence.status === "not-tracked"
+                                  ? "Not tracked"
+                                  : evidence.observedAt
+                                    ? "Observed"
+                                    : "No observation"}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          })
+        }
+      </div>
+      <div class="dashboard-rail">
+        <aside
+          class="detail-panel"
+          id="coordinate-detail"
+          aria-labelledby="detail-title"
+          aria-live="polite"
+        >
+          <div class="detail-empty" data-detail-empty hidden>
+            <p class="eyebrow">Selected coordinate</p>
+            <h3>Choose a row to inspect evidence</h3>
+            <p>
+              Build, release, package, deployment, direct links, and history appear
+              here.
+            </p>
+          </div>
+          <div class="detail-content" data-detail-content>
+            <div class="detail-heading">
+              <div>
+                <p class="eyebrow">Selected coordinate</p>
+                <h3 id="detail-title" data-detail-component>
+                  {initialCoordinate?.repository ?? "Choose a row"}
+                </h3>
+                <a
+                  data-detail-repository
+                  href={initialCoordinate
+                    ? githubRepositoryUrl(initialCoordinate.repository)
+                    : undefined}
+                >
+                  {initialCoordinate ? "View on GitHub ↗" : "Awaiting GitHub evidence"}
+                </a>
               </div>
-              <div class="matrix-body">
-                {coordinates.map((coordinate) => (
-                  <article
-                    class="matrix-row"
-                    role="row"
-                    data-coordinate-id={coordinate.id}
-                    data-coordinate-status={coordinate.overall}
-                    data-coordinate-text={`${coordinate.component} ${coordinate.repository}`.toLowerCase()}
-                  >
-                    <div class="matrix-coordinate" role="cell">
-                      <button
-                        type="button"
-                        class="coordinate-select"
-                        data-coordinate-select={coordinate.id}
-                        aria-controls="coordinate-detail"
-                        aria-expanded="false"
-                      >
-                        <span class="coordinate-component">{coordinate.component}</span>
-                      </button>
-                      <a
-                        class="coordinate-repository"
-                        href={githubRepositoryUrl(coordinate.repository)}
-                      >
-                        {coordinate.repository} <span aria-hidden="true">↗</span>
-                      </a>
-                      <StatusIndicator status={coordinate.overall} context="overall" />
-                    </div>
-                    {coordinateSignals(coordinate).map(({ key, label, evidence }) => (
-                      <div
-                        class="matrix-signal"
-                        role="cell"
-                        data-evidence-kind={key}
-                        data-column-label={label}
-                      >
+              <StatusIndicator
+                status={initialCoordinate?.overall ?? "unknown"}
+                context="overall"
+              />
+            </div>
+            <div class="detail-grid">
+              {
+                signalDefinitions.map(([key, label, description]) => {
+                  const evidence = initialCoordinate?.[key];
+                  return (
+                    <article class="detail-signal" data-detail-signal={key}>
+                      <div class="detail-signal-heading">
+                        <div>
+                          <p class="detail-signal-label">{label}</p>
+                          <p class="detail-signal-description" data-detail-description>
+                            {key === "deployment" &&
+                            initialCoordinate?.deploymentApplicable === false
+                              ? "No deployment surface is configured for this coordinate."
+                              : description}
+                          </p>
+                        </div>
                         <StatusIndicator
-                          status={evidence.status}
+                          status={evidence?.status ?? "unknown"}
                           size="compact"
                           context="evidence"
                         />
-                        <span class="matrix-observed" data-evidence-observed>
-                          {evidence.status === "not-tracked"
-                            ? "Not tracked"
-                            : evidence.observedAt
-                              ? "Observed"
-                              : "No observation"}
+                      </div>
+                      <p class="detail-observed" data-detail-observed>
+                        {evidence?.status === "not-tracked"
+                          ? "Not tracked"
+                          : evidence?.observedAt
+                            ? "Observed"
+                            : "No observation"}
+                      </p>
+                      <div class="detail-evidence-links">
+                        <a data-detail-evidence-link>
+                          {evidence?.latest ? "View evidence ↗" : "No link yet"}
+                        </a>
+                        <span>
+                          <span class="history-label">Last good</span>
+                          <a data-detail-good>No record</a>
+                        </span>
+                        <span>
+                          <span class="history-label">Last failure</span>
+                          <a data-detail-failure>No record</a>
                         </span>
                       </div>
-                    ))}
-                  </article>
-                ))}
-              </div>
+                    </article>
+                  );
+                })
+              }
             </div>
-          </section>
-        );
-      })
-    }
-
-    <aside
-      class="detail-panel"
-      id="coordinate-detail"
-      aria-labelledby="detail-title"
-      aria-live="polite"
-    >
-      <div class="detail-empty" data-detail-empty>
-        <p class="eyebrow">Selected coordinate</p>
-        <h3 id="detail-title">Choose a row to inspect evidence</h3>
-        <p>
-          Build, release, package, deployment, direct links, and history appear here.
-        </p>
-      </div>
-      <div class="detail-content" data-detail-content hidden>
-        <div class="detail-heading">
-          <div>
-            <p class="eyebrow">Selected coordinate</p>
-            <h3 data-detail-component></h3>
-            <a data-detail-repository></a>
+            <p class="detail-ref">
+              Ref: <span data-detail-ref
+                >{
+                  initialCoordinate?.build.latest?.ref ?? "Awaiting GitHub evidence"
+                }</span
+              >
+            </p>
           </div>
-          <StatusIndicator status="unknown" context="overall" />
-        </div>
-        <div class="detail-grid">
-          {
-            signalDefinitions.map(([key, label, description]) => (
-              <article class="detail-signal" data-detail-signal={key}>
-                <div class="detail-signal-heading">
-                  <div>
-                    <p class="detail-signal-label">{label}</p>
-                    <p class="detail-signal-description" data-detail-description>
-                      {description}
-                    </p>
-                  </div>
-                  <StatusIndicator status="unknown" size="compact" context="evidence" />
-                </div>
-                <p class="detail-observed" data-detail-observed>
-                  No observation
-                </p>
-                <div class="detail-evidence-links">
-                  <a data-detail-evidence-link>View evidence ↗</a>
-                  <span>
-                    <span class="history-label">Last good</span>
-                    <a data-detail-good>No record</a>
-                  </span>
-                  <span>
-                    <span class="history-label">Last failure</span>
-                    <a data-detail-failure>No record</a>
-                  </span>
-                </div>
-              </article>
-            ))
-          }
-        </div>
-        <p class="detail-ref">
-          Ref: <span data-detail-ref>Awaiting GitHub evidence</span>
-        </p>
-      </div>
-    </aside>
-  </section>
+        </aside>
 
-  <section class="services-shell" id="services" aria-labelledby="services-title">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Public reachability</p>
-        <h2 id="services-title">Services, kept independent</h2>
-      </div>
-      <p class="section-note">A probe is an observation, not a guarantee.</p>
-    </div>
-    <div class="service-grid">
-      {
-        dashboard.services.map((service) =>
-          isMetaserver(service) ? (
-            <article class="service-card metaserver-card" data-service-id={service.id}>
-              <div class="service-card-heading">
-                <div>
-                  <p class="service-kicker">Metaserver surfaces</p>
-                  <h3>{service.name}</h3>
-                  <a class="service-url" href={service.url}>
-                    Classic listings authority <span aria-hidden="true">↗</span>
-                  </a>
-                </div>
-                <StatusIndicator status={service.status} context="service" />
-              </div>
-              <div class="surface-list">
-                <div class="surface-row" data-surface-id="listings">
-                  <div>
-                    <strong>Listings</strong>
-                    <span class="surface-summary" data-surface-summary>
-                      {service.surfaces.listings.availableFormats}/4 formats ·{" "}
-                      {service.surfaces.listings.status}
-                    </span>
-                  </div>
-                  <StatusIndicator
-                    status={service.surfaces.listings.status}
-                    context="service"
-                    size="compact"
-                  />
-                  <p data-surface-observed>
-                    {formatSummary(
-                      service.surfaces.listings.status,
-                      service.surfaces.listings.observedAt,
-                      service.surfaces.listings.ageSeconds,
-                    )}
-                  </p>
-                </div>
-                <div class="surface-row" data-surface-id="rendezvous">
-                  <div>
-                    <strong>Rendezvous rooms</strong>
-                    <span class="surface-summary" data-surface-summary>
-                      {service.surfaces.rendezvous.status} · no safe aggregate source
-                    </span>
-                  </div>
-                  <StatusIndicator
-                    status={service.surfaces.rendezvous.status}
-                    context="service"
-                    size="compact"
-                  />
-                  <p data-surface-observed>{service.surfaces.rendezvous.error}</p>
-                </div>
-              </div>
-              <details class="surface-details">
-                <summary>Show format evidence and safe observation boundaries</summary>
-                <div class="format-list" data-format-list>
-                  {service.surfaces.listings.formats.map((format) => (
-                    <div class="format-row" data-format={format.format}>
-                      <span>{format.label}</span>
-                      <StatusIndicator
-                        status={format.status}
-                        context="service"
-                        size="compact"
-                      />
-                      <span class="format-metric" data-format-response>
-                        {format.statusCode ?? "—"} · {format.responseMs ?? "—"}ms ·{" "}
-                        {format.generation ?? "no generation"}
-                      </span>
-                      <a href={format.url}>Open listing ↗</a>
-                    </div>
-                  ))}
-                </div>
-                <p class="surface-boundary" data-rendezvous-boundary>
-                  Rendezvous stays Unknown unless a documented operator-safe source
-                  reports route, authenticated-control, and recent admission signals. No
-                  room, server ID, or token is enumerated here.
-                </p>
-                {service.surfaces.rendezvous.evidenceUrl ? (
-                  <a
-                    class="surface-boundary-link"
-                    href={service.surfaces.rendezvous.evidenceUrl}
+        <section class="services-shell" id="services" aria-labelledby="services-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Public services</p>
+              <h2 id="services-title">Public services</h2>
+            </div>
+            <p class="section-note">Independent read-only surfaces</p>
+          </div>
+          <div class="service-grid">
+            {
+              dashboard.services.map((service) =>
+                isMetaserver(service) ? (
+                  <article
+                    class="service-card metaserver-card"
+                    data-service-id={service.id}
                   >
-                    Read the rendezvous contract ↗
-                  </a>
-                ) : null}
-              </details>
-            </article>
-          ) : (
-            <article class="service-card" data-service-id={service.id}>
-              <div class="service-icon" aria-hidden="true">
-                <span />
-              </div>
-              <div class="service-body">
-                <div class="service-title-row">
-                  <h3>{service.name}</h3>
-                  <StatusIndicator status={service.status} context="service" />
-                </div>
-                <a class="service-url" href={service.url}>
-                  {service.url} <span aria-hidden="true">↗</span>
-                </a>
-                <p class="service-observation" data-service-observed>
-                  No probe observation yet. Missing data is unknown.
-                </p>
-              </div>
-            </article>
-          ),
-        )
-      }
-    </div>
-  </section>
+                    <div class="service-card-heading">
+                      <div class="service-icon service-icon-server" aria-hidden="true">
+                        <span />
+                      </div>
+                      <div>
+                        <p class="service-kicker">Public service</p>
+                        <h3>{service.name}</h3>
+                        <a class="service-url" href={service.url}>
+                          Static directory + WebSocket signaling
+                        </a>
+                      </div>
+                      <StatusIndicator status={service.status} context="service" />
+                    </div>
+                    <div class="surface-list">
+                      <div class="surface-row" data-surface-id="listings">
+                        <div>
+                          <strong>Listings</strong>
+                          <span class="surface-summary" data-surface-summary>
+                            {service.surfaces.listings.availableFormats}/4 formats ·{" "}
+                            {service.surfaces.listings.status}
+                          </span>
+                        </div>
+                        <StatusIndicator
+                          status={service.surfaces.listings.status}
+                          context="service"
+                          size="compact"
+                        />
+                        <p data-surface-observed>
+                          {formatSummary(
+                            service.surfaces.listings.status,
+                            service.surfaces.listings.observedAt,
+                            service.surfaces.listings.ageSeconds,
+                          )}
+                        </p>
+                      </div>
+                      <div class="surface-row" data-surface-id="rendezvous">
+                        <div>
+                          <strong>Rendezvous rooms</strong>
+                          <span class="surface-summary" data-surface-summary>
+                            {service.surfaces.rendezvous.status} · no safe aggregate
+                            source
+                          </span>
+                        </div>
+                        <StatusIndicator
+                          status={service.surfaces.rendezvous.status}
+                          context="service"
+                          size="compact"
+                        />
+                        <p data-surface-observed>{service.surfaces.rendezvous.error}</p>
+                      </div>
+                    </div>
+                    <details class="surface-details">
+                      <summary>
+                        Show format evidence and safe observation boundaries
+                      </summary>
+                      <div class="format-list" data-format-list>
+                        {service.surfaces.listings.formats.map((format) => (
+                          <div class="format-row" data-format={format.format}>
+                            <span>{format.label}</span>
+                            <StatusIndicator
+                              status={format.status}
+                              context="service"
+                              size="compact"
+                            />
+                            <span class="format-metric" data-format-response>
+                              {format.statusCode ?? "—"} · {format.responseMs ?? "—"}ms
+                              · {format.generation ?? "no generation"}
+                            </span>
+                            <a href={format.url}>Open listing ↗</a>
+                          </div>
+                        ))}
+                      </div>
+                      <p class="surface-boundary" data-rendezvous-boundary>
+                        Rendezvous stays Unknown unless a documented operator-safe
+                        source reports route, authenticated-control, and recent
+                        admission signals. No room, server ID, or token is enumerated
+                        here.
+                      </p>
+                      {service.surfaces.rendezvous.evidenceUrl ? (
+                        <a
+                          class="surface-boundary-link"
+                          href={service.surfaces.rendezvous.evidenceUrl}
+                        >
+                          Read the rendezvous contract ↗
+                        </a>
+                      ) : null}
+                    </details>
+                  </article>
+                ) : (
+                  <article class="service-card" data-service-id={service.id}>
+                    <div class="service-icon" aria-hidden="true">
+                      <span />
+                    </div>
+                    <div class="service-body">
+                      <div class="service-title-row">
+                        <h3>{service.name}</h3>
+                        <StatusIndicator status={service.status} context="service" />
+                      </div>
+                      <a class="service-url" href={service.url}>
+                        {service.url} <span aria-hidden="true">↗</span>
+                      </a>
+                      <p class="service-observation" data-service-observed>
+                        No probe observation yet. Missing data is unknown.
+                      </p>
+                    </div>
+                  </article>
+                ),
+              )
+            }
+          </div>
+        </section>
 
-  <section class="about-shell" id="about" aria-labelledby="about-title">
-    <div class="about-panel">
-      <div>
-        <p class="eyebrow">How to read this</p>
-        <h2 id="about-title">A green light has a narrow meaning.</h2>
-      </div>
-      <div class="about-copy">
-        <p>
-          Observatory keeps build, release, package, deployment, and public-service
-          evidence separate. A passing workflow can be followed by a failed release, a
-          missing package, a stale listing format, or an unknown rendezvous surface.
-        </p>
-        <p>
-          Every detailed link returns to the originating GitHub source or public
-          listing. The dashboard stores compact normalized summaries; it does not mirror
-          logs, private rooms, server IDs, tokens, or large artifacts, and it cannot
-          mutate the systems it observes.
-        </p>
+        <section class="about-shell" id="about" aria-labelledby="about-title">
+          <div class="about-panel">
+            <div>
+              <p class="eyebrow">How to read this</p>
+              <h2 id="about-title">
+                Signals reflect the latest known state from our data sources.
+              </h2>
+            </div>
+            <div class="about-copy">
+              <p>
+                They are read-only and may lag behind in-flight activity. Evidence links
+                return to GitHub or public listings; no logs, private rooms, tokens, or
+                mutation controls are exposed.
+              </p>
+            </div>
+            <span class="about-chevron" aria-hidden="true">⌄</span>
+          </div>
+        </section>
       </div>
     </div>
   </section>
@@ -637,10 +701,10 @@ const stackOrder = ["classic", "default"] as const;
       if (empty) empty.hidden = true;
       if (content) content.hidden = false;
       const component = document.querySelector("[data-detail-component]");
-      if (component) component.textContent = coordinate.component;
+      if (component) component.textContent = coordinate.repository;
       const repository = document.querySelector("[data-detail-repository]");
       if (repository) {
-        repository.textContent = `${coordinate.repository} ↗`;
+        repository.textContent = "View on GitHub ↗";
         if (isSafeUrl(`https://github.com/${coordinate.repository}`)) {
           repository.setAttribute(
             "href",
