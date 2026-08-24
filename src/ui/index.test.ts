@@ -48,6 +48,9 @@ describe("initial stack view markup", () => {
     expect(source).toContain("href={githubRepositoryUrl(coordinate.repository)}");
     expect(source).toContain("Public services");
     expect(source).toContain("How to read this");
+    expect(source.indexOf('id="services"')).toBeLessThan(
+      source.indexOf('id="coordinate-detail"'),
+    );
   });
 
   it("keeps tab ARIA state and panel visibility synchronized on interaction", () => {

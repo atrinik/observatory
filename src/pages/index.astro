@@ -303,98 +303,6 @@ const initialCoordinate =
         }
       </div>
       <div class="dashboard-rail">
-        <aside
-          class="detail-panel"
-          id="coordinate-detail"
-          aria-labelledby="detail-title"
-          aria-live="polite"
-        >
-          <div class="detail-empty" data-detail-empty hidden>
-            <p class="eyebrow">Selected coordinate</p>
-            <h3>Choose a row to inspect evidence</h3>
-            <p>
-              Build, release, package, deployment, direct links, and history appear
-              here.
-            </p>
-          </div>
-          <div class="detail-content" data-detail-content>
-            <div class="detail-heading">
-              <div>
-                <p class="eyebrow">Selected coordinate</p>
-                <h3 id="detail-title" data-detail-component>
-                  {initialCoordinate?.repository ?? "Choose a row"}
-                </h3>
-                <a
-                  data-detail-repository
-                  href={initialCoordinate
-                    ? githubRepositoryUrl(initialCoordinate.repository)
-                    : undefined}
-                >
-                  {initialCoordinate ? "View on GitHub ↗" : "Awaiting GitHub evidence"}
-                </a>
-              </div>
-              <StatusIndicator
-                status={initialCoordinate?.overall ?? "unknown"}
-                context="overall"
-              />
-            </div>
-            <div class="detail-grid">
-              {
-                signalDefinitions.map(([key, label, description]) => {
-                  const evidence = initialCoordinate?.[key];
-                  return (
-                    <article class="detail-signal" data-detail-signal={key}>
-                      <div class="detail-signal-heading">
-                        <div>
-                          <p class="detail-signal-label">{label}</p>
-                          <p class="detail-signal-description" data-detail-description>
-                            {key === "deployment" &&
-                            initialCoordinate?.deploymentApplicable === false
-                              ? "No deployment surface is configured for this coordinate."
-                              : description}
-                          </p>
-                        </div>
-                        <StatusIndicator
-                          status={evidence?.status ?? "unknown"}
-                          size="compact"
-                          context="evidence"
-                        />
-                      </div>
-                      <p class="detail-observed" data-detail-observed>
-                        {evidence?.status === "not-tracked"
-                          ? "Not tracked"
-                          : evidence?.observedAt
-                            ? "Observed"
-                            : "No observation"}
-                      </p>
-                      <div class="detail-evidence-links">
-                        <a data-detail-evidence-link>
-                          {evidence?.latest ? "View evidence ↗" : "No link yet"}
-                        </a>
-                        <span>
-                          <span class="history-label">Last good</span>
-                          <a data-detail-good>No record</a>
-                        </span>
-                        <span>
-                          <span class="history-label">Last failure</span>
-                          <a data-detail-failure>No record</a>
-                        </span>
-                      </div>
-                    </article>
-                  );
-                })
-              }
-            </div>
-            <p class="detail-ref">
-              Ref: <span data-detail-ref
-                >{
-                  initialCoordinate?.build.latest?.ref ?? "Awaiting GitHub evidence"
-                }</span
-              >
-            </p>
-          </div>
-        </aside>
-
         <section class="services-shell" id="services" aria-labelledby="services-title">
           <div class="section-heading">
             <div>
@@ -522,6 +430,98 @@ const initialCoordinate =
             }
           </div>
         </section>
+
+        <aside
+          class="detail-panel"
+          id="coordinate-detail"
+          aria-labelledby="detail-title"
+          aria-live="polite"
+        >
+          <div class="detail-empty" data-detail-empty hidden>
+            <p class="eyebrow">Selected coordinate</p>
+            <h3>Choose a row to inspect evidence</h3>
+            <p>
+              Build, release, package, deployment, direct links, and history appear
+              here.
+            </p>
+          </div>
+          <div class="detail-content" data-detail-content>
+            <div class="detail-heading">
+              <div>
+                <p class="eyebrow">Selected coordinate</p>
+                <h3 id="detail-title" data-detail-component>
+                  {initialCoordinate?.repository ?? "Choose a row"}
+                </h3>
+                <a
+                  data-detail-repository
+                  href={initialCoordinate
+                    ? githubRepositoryUrl(initialCoordinate.repository)
+                    : undefined}
+                >
+                  {initialCoordinate ? "View on GitHub ↗" : "Awaiting GitHub evidence"}
+                </a>
+              </div>
+              <StatusIndicator
+                status={initialCoordinate?.overall ?? "unknown"}
+                context="overall"
+              />
+            </div>
+            <div class="detail-grid">
+              {
+                signalDefinitions.map(([key, label, description]) => {
+                  const evidence = initialCoordinate?.[key];
+                  return (
+                    <article class="detail-signal" data-detail-signal={key}>
+                      <div class="detail-signal-heading">
+                        <div>
+                          <p class="detail-signal-label">{label}</p>
+                          <p class="detail-signal-description" data-detail-description>
+                            {key === "deployment" &&
+                            initialCoordinate?.deploymentApplicable === false
+                              ? "No deployment surface is configured for this coordinate."
+                              : description}
+                          </p>
+                        </div>
+                        <StatusIndicator
+                          status={evidence?.status ?? "unknown"}
+                          size="compact"
+                          context="evidence"
+                        />
+                      </div>
+                      <p class="detail-observed" data-detail-observed>
+                        {evidence?.status === "not-tracked"
+                          ? "Not tracked"
+                          : evidence?.observedAt
+                            ? "Observed"
+                            : "No observation"}
+                      </p>
+                      <div class="detail-evidence-links">
+                        <a data-detail-evidence-link>
+                          {evidence?.latest ? "View evidence ↗" : "No link yet"}
+                        </a>
+                        <span>
+                          <span class="history-label">Last good</span>
+                          <a data-detail-good>No record</a>
+                        </span>
+                        <span>
+                          <span class="history-label">Last failure</span>
+                          <a data-detail-failure>No record</a>
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })
+              }
+            </div>
+            <p class="detail-ref">
+              Ref: <span data-detail-ref
+                >{
+                  initialCoordinate?.build.latest?.ref ?? "Awaiting GitHub evidence"
+                }</span
+              >
+            </p>
+          </div>
+        </aside>
 
         <section class="about-shell" id="about" aria-labelledby="about-title">
           <div class="about-panel">
