@@ -49,7 +49,12 @@ The forward migration `0002_update_metaserver_probe.sql` also aligns existing
 Worker is deployed. The forward migration
 `0003_deployment_applicability.sql` adds the explicit per-coordinate deployment
 capability and marks shared asset coordinates such as `resources` as
-non-applicable.
+non-applicable. The forward migration
+`0004_metaserver_surfaces.sql` adds the independent listing metadata columns,
+seeds the four Classic listing aliases, and records the rendezvous surface as a
+non-probed contract entry. Apply it before deploying the updated Pages Function
+or scheduled probe Worker; it is forward-only and does not rewrite retained
+observations.
 
 ## Pages project
 
@@ -93,6 +98,9 @@ selected only by the protected release workflow after the migration gate.
 Review builds must use the preview config and must not run production service
 probes. The production cron is `*/5 * * * *`; configure the same trigger from
 both config files rather than adding a dashboard-only schedule.
+The Worker probes the website and four static listing aliases only. It
+deliberately skips the rendezvous row because the public route requires a server
+ID and does not provide a safe aggregate observation contract.
 
 For a separately authenticated preview deploy, the command is:
 

@@ -1,10 +1,13 @@
 import { aggregateDashboard } from "../domain/aggregate";
 import { SERVICE_PROBES } from "../domain/components";
+import { extractListingMetadata, MAX_LISTING_BODY_BYTES } from "../domain/metaserver";
 import type {
   ComponentCoordinate,
   CoordinateEvidenceKind,
+  ListingFormat,
   NormalizedObservation,
   ObservationStatus,
+  ServiceSurface,
   ServiceObservation,
   ServiceProbe,
 } from "../domain/types";
@@ -42,6 +45,8 @@ interface ServiceProbeRow {
   url: string;
   stack: "default" | "classic";
   stale_after_seconds: number;
+  surface: ServiceSurface;
+  format: ListingFormat | null;
 }
 
 interface ServiceObservationRow {
@@ -52,6 +57,10 @@ interface ServiceObservationRow {
   status_code: number | null;
   response_ms: number | null;
   error: string | null;
+  format: ListingFormat | null;
+  generation: string | null;
+  entry_count: number | null;
+  parity_key: string | null;
 }
 
 export interface DeliveryResult {
@@ -92,12 +101,16 @@ function toStoredObservation(row: ObservationRow): StoredObservation {
 }
 
 function toProbe(row: ServiceProbeRow): ServiceProbe {
+  const definition = SERVICE_PROBES.find((probe) => probe.id === row.id);
   return {
     id: row.id,
     name: row.name,
     url: row.url,
     stack: row.stack,
     staleAfterSeconds: row.stale_after_seconds,
+    surface: row.surface,
+    format: row.format,
+    evidenceUrl: definition?.evidenceUrl ?? row.url,
   };
 }
 
@@ -110,6 +123,10 @@ function toServiceObservation(row: ServiceObservationRow): ServiceObservation {
     statusCode: row.status_code,
     responseMs: row.response_ms,
     error: row.error,
+    format: row.format,
+    generation: row.generation,
+    entryCount: row.entry_count,
+    parityKey: row.parity_key,
   };
 }
 
@@ -137,12 +154,12 @@ export async function readDashboard(
         .all<ObservationRow>(),
       db
         .prepare(
-          "SELECT id, name, url, stack, stale_after_seconds FROM service_probes ORDER BY stack, name",
+          "SELECT id, name, url, stack, stale_after_seconds, surface, format FROM service_probes ORDER BY stack, surface, name",
         )
         .all<ServiceProbeRow>(),
       db
         .prepare(
-          "SELECT id, probe_id, status, observed_at, status_code, response_ms, error FROM service_observations",
+          "SELECT id, probe_id, status, observed_at, status_code, response_ms, error, format, generation, entry_count, parity_key FROM service_observations",
         )
         .all<ServiceObservationRow>(),
     ]);
@@ -248,7 +265,7 @@ export async function recordServiceObservation(
 ): Promise<void> {
   await db
     .prepare(
-      "INSERT OR IGNORE INTO service_observations (id, probe_id, status, observed_at, status_code, response_ms, error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT OR IGNORE INTO service_observations (id, probe_id, status, observed_at, status_code, response_ms, error, format, generation, entry_count, parity_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(
       observation.id,
@@ -258,8 +275,43 @@ export async function recordServiceObservation(
       observation.statusCode,
       observation.responseMs,
       observation.error,
+      observation.format,
+      observation.generation,
+      observation.entryCount,
+      observation.parityKey,
     )
     .run();
+}
+
+async function readBoundedText(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = Number.parseInt(
+    response.headers.get("content-length") ?? "",
+    10,
+  );
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    if (response.body) await response.body.cancel();
+    return "";
+  }
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      bytesRead += value.byteLength;
+      if (bytesRead > maxBytes) {
+        await reader.cancel();
+        return "";
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 async function probeOne(
@@ -273,9 +325,20 @@ async function probeOne(
     const response = await fetch(probe.url, {
       method: "GET",
       headers: { "user-agent": "Atrinik-Observatory-Health/1.0" },
+      redirect: "manual",
       signal: controller.signal,
     });
-    if (response.body) await response.body.cancel();
+    const metadata =
+      response.ok && probe.surface === "listings" && probe.format
+        ? extractListingMetadata(
+            probe.format,
+            await readBoundedText(response, MAX_LISTING_BODY_BYTES),
+            response.headers,
+          )
+        : { generation: null, entryCount: null, parityKey: null };
+    if (response.body && (!response.ok || probe.surface !== "listings")) {
+      await response.body.cancel();
+    }
     const observedAt = new Date().toISOString();
     return {
       id: `${probe.id}:${observedAt}`,
@@ -285,6 +348,10 @@ async function probeOne(
       statusCode: response.status,
       responseMs: Date.now() - startedAt,
       error: response.ok ? null : `${response.status} ${response.statusText}`.trim(),
+      format: probe.format,
+      generation: metadata.generation,
+      entryCount: metadata.entryCount,
+      parityKey: metadata.parityKey,
     };
   } catch (error) {
     const observedAt = new Date().toISOString();
@@ -296,6 +363,10 @@ async function probeOne(
       statusCode: null,
       responseMs: Date.now() - startedAt,
       error: error instanceof Error ? error.message.slice(0, 240) : "probe failed",
+      format: probe.format,
+      generation: null,
+      entryCount: null,
+      parityKey: null,
     };
   } finally {
     clearTimeout(timeout);
@@ -308,20 +379,22 @@ export async function runServiceProbes(
 ): Promise<number> {
   const result = await db
     .prepare(
-      "SELECT id, name, url, stack, stale_after_seconds FROM service_probes ORDER BY id",
+      "SELECT id, name, url, stack, stale_after_seconds, surface, format FROM service_probes ORDER BY id",
     )
     .all<ServiceProbeRow>();
   const probes =
     result.results.length > 0 ? result.results.map(toProbe) : SERVICE_PROBES;
   const timeoutMs = envSeconds(timeoutMsValue, 5000);
   const observations = await Promise.all(
-    probes.map((probe) => probeOne(probe, timeoutMs)),
+    probes
+      .filter((probe) => probe.surface === "service" || probe.surface === "listings")
+      .map((probe) => probeOne(probe, timeoutMs)),
   );
   await db.batch(
     observations.map((observation) =>
       db
         .prepare(
-          "INSERT OR IGNORE INTO service_observations (id, probe_id, status, observed_at, status_code, response_ms, error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT OR IGNORE INTO service_observations (id, probe_id, status, observed_at, status_code, response_ms, error, format, generation, entry_count, parity_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(
           observation.id,
@@ -331,6 +404,10 @@ export async function runServiceProbes(
           observation.statusCode,
           observation.responseMs,
           observation.error,
+          observation.format,
+          observation.generation,
+          observation.entryCount,
+          observation.parityKey,
         ),
     ),
   );

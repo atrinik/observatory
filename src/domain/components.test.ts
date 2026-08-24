@@ -16,6 +16,28 @@ describe("service probes", () => {
     expect(probe?.url).not.toBe("https://meta.atrinik.org/");
     expect(dashboardService?.url).toBe(CLASSIC_METASERVER_URL);
   });
+
+  it("keeps the four Classic listing aliases independent from rendezvous", () => {
+    expect(
+      SERVICE_PROBES.filter((probe) => probe.surface === "listings").map((probe) => [
+        probe.format,
+        probe.url,
+      ]),
+    ).toEqual([
+      ["html", CLASSIC_METASERVER_URL],
+      ["root", "https://classic.meta.atrinik.org/"],
+      ["json", "https://classic.meta.atrinik.org/index.json"],
+      ["xml", "https://classic.meta.atrinik.org/index.xml"],
+    ]);
+
+    expect(
+      SERVICE_PROBES.find((probe) => probe.surface === "rendezvous"),
+    ).toMatchObject({
+      id: "metaserver:rendezvous",
+      format: null,
+      url: "https://rendezvous.meta.atrinik.org/",
+    });
+  });
 });
 
 describe("coordinate deployment applicability", () => {

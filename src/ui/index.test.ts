@@ -26,6 +26,18 @@ describe("initial stack view markup", () => {
     expect(source).toContain("hidden={stack !== initialStack}");
   });
 
+  it("renders a compact evidence matrix and independent metaserver surfaces", () => {
+    expect(source).toContain('class="matrix"');
+    expect(source).toContain("Build");
+    expect(source).toContain("Release");
+    expect(source).toContain("Package");
+    expect(source).toContain("Deploy");
+    expect(source).toContain('data-surface-id="listings"');
+    expect(source).toContain('data-surface-id="rendezvous"');
+    expect(source).toContain("data-coordinate-filter");
+    expect(source).toContain("data-detail-content");
+  });
+
   it("keeps tab ARIA state and panel visibility synchronized on interaction", () => {
     expect(source).toContain(
       'candidate.setAttribute("aria-selected", String(active));',
