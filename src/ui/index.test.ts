@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("../pages/index.astro", import.meta.url), "utf8");
+const layout = readFileSync(new URL("../layouts/Base.astro", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../styles/global.css", import.meta.url), "utf8");
 
 const tabMarkup = (stack: "default" | "classic") => {
@@ -88,5 +89,13 @@ describe("initial stack view markup", () => {
     expect(source).toContain('class="service-card-main"');
     expect(styles).toContain(".service-card-main");
     expect(styles).toContain(".service-grid .status-unknown .status-icon::after");
+    expect(styles).toContain(".status-not-tracked .status-icon::after");
+    expect(styles).toContain("background: linear-gradient(currentColor, currentColor)");
+    expect(styles).toContain('.site-header nav a[aria-current="page"]');
+    expect(styles).toContain(".stack-tab,\n.filter-button");
+    expect(layout).toContain('href="/favicon.svg"');
+    expect(layout).toContain('href="/mask-icon.svg"');
+    expect(layout).toContain('aria-current="page"');
+    expect(source).toContain("Atrinik / Observatory");
   });
 });

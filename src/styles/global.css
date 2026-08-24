@@ -1,21 +1,21 @@
 :root {
   color-scheme: dark;
-  --ink: #05090f;
-  --night: #07131e;
-  --night-soft: #0b1c2a;
-  --panel: rgba(13, 30, 44, 0.82);
-  --panel-solid: #0d1e2c;
-  --panel-raised: #122a3d;
-  --line: rgba(172, 207, 226, 0.17);
-  --line-strong: rgba(172, 207, 226, 0.3);
-  --text: #f2f1e9;
-  --text-soft: #c7d2d8;
-  --muted: #8fa3b1;
-  --blue: #75e7ff;
-  --blue-bright: #c3f5ff;
-  --blue-deep: #157bb1;
-  --gold: #d8b367;
-  --gold-bright: #f4daa1;
+  --ink: #05080d;
+  --night: #07111d;
+  --night-soft: #0a1827;
+  --panel: #0d1c2b;
+  --panel-solid: #0d1c2b;
+  --panel-raised: #12263a;
+  --line: rgba(177, 204, 224, 0.18);
+  --line-strong: rgba(177, 204, 224, 0.3);
+  --text: #f4f0e5;
+  --text-soft: #c8d0d8;
+  --muted: #96a6b4;
+  --blue: #72ddff;
+  --blue-bright: #b8efff;
+  --blue-deep: #1879b6;
+  --gold: #d6b364;
+  --gold-bright: #f0d99d;
   --green: #6be4a5;
   --green-bg: rgba(71, 212, 148, 0.12);
   --red: #ff887f;
@@ -27,9 +27,9 @@
   --sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  --wide: 92rem;
-  --content: 78rem;
-  --shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.28);
+  --wide: 94rem;
+  --content: 76rem;
+  --shadow: 0 1rem 2.25rem rgba(0, 0, 0, 0.34);
   background: var(--ink);
   color: var(--text);
   font-family: var(--sans);
@@ -3292,4 +3292,152 @@ body {
   line-height: 1;
   text-align: center;
   transform: none;
+}
+
+.matrix-signal .status-not-tracked .status-icon::after,
+.surface-row .status-not-tracked .status-icon::after,
+.service-card-heading > .status-not-tracked .status-icon::after,
+.service-title-row > .status-not-tracked .status-icon::after,
+.detail-signal-heading > .status-not-tracked .status-icon::after,
+.service-grid .status-not-tracked .status-icon::after {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: linear-gradient(currentColor, currentColor) center / 52% 1.5px no-repeat;
+  transform: none;
+}
+
+/* Match the shared Atrinik website visual language. */
+body {
+  background:
+    radial-gradient(circle at 82% 9%, rgba(28, 112, 170, 0.18), transparent 29rem),
+    radial-gradient(circle at 16% 38%, rgba(80, 47, 139, 0.1), transparent 34rem),
+    linear-gradient(180deg, var(--night) 0, var(--ink) 52rem, #070b11 100%);
+}
+
+.site-header {
+  background: rgba(5, 12, 20, 0.97);
+  backdrop-filter: blur(1rem);
+}
+
+.header-inner {
+  min-height: 5.25rem;
+}
+
+.site-header .brand-name {
+  font-size: 1.65rem;
+  letter-spacing: 0.03em;
+}
+
+.site-header .brand-mark {
+  width: 1.75rem;
+  height: 2.2rem;
+}
+
+.site-header .brand-mark::before,
+.site-header .brand-mark::after,
+.site-header .brand-mark i {
+  border: 1px solid var(--blue);
+  background: linear-gradient(
+    145deg,
+    rgba(184, 239, 255, 0.86),
+    rgba(24, 121, 182, 0.25)
+  );
+}
+
+.site-header .brand-mark::before {
+  top: 50%;
+  left: 50%;
+  width: 0.78rem;
+  height: 0.78rem;
+  clip-path: none;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.site-header .brand-mark::after {
+  top: 0.08rem;
+  left: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  transform: translate(-50%, 0) rotate(45deg);
+}
+
+.site-header .brand-mark i {
+  right: auto;
+  bottom: 0.08rem;
+  left: 50%;
+  width: 0.3rem;
+  height: 0.3rem;
+  transform: translate(-50%, 0) rotate(45deg);
+}
+
+.site-header nav {
+  gap: 0.25rem;
+}
+
+.site-header nav a,
+.site-header .header-link {
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.site-header nav a:first-child {
+  border-bottom: 0;
+}
+
+.site-header nav a:hover,
+.site-header nav a[aria-current="page"],
+.site-header .header-link:hover {
+  background: rgba(114, 221, 255, 0.09);
+  color: white;
+}
+
+.site-header nav a[aria-current="page"] {
+  box-shadow: inset 0 0 0 1px rgba(114, 221, 255, 0.18);
+}
+
+.compact-hero {
+  background: transparent;
+}
+
+.compact-hero .hero-inner {
+  padding: 2.8rem 0 1.65rem;
+}
+
+.compact-hero .eyebrow {
+  margin-bottom: 0.75rem;
+}
+
+.stack-switcher {
+  border-radius: 0.25rem;
+}
+
+.stack-tab,
+.filter-button {
+  border-radius: 0.25rem;
+  font-family: var(--sans);
+  font-weight: 850;
+  letter-spacing: 0.055em;
+}
+
+.filter-search input {
+  border-radius: 0.25rem;
+  font-family: var(--sans);
+}
+
+.summary-card,
+.matrix-panel,
+.services-shell,
+.detail-panel,
+.about-shell,
+.service-card {
+  border-radius: 0.25rem;
 }

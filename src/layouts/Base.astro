@@ -21,12 +21,10 @@ const canonical = new URL(
     <meta name="description" content={description} />
     <meta name="robots" content="index,follow" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#07131e" />
+    <meta name="theme-color" content="#07111d" />
     <link rel="canonical" href={canonical} />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307131e'/%3E%3Cpath d='m32 8 19 24-19 24L13 32z' fill='%2375e7ff' fill-opacity='.82'/%3E%3Cpath d='m32 17 11 15-11 15-11-15z' fill='%2307131e'/%3E%3C/svg%3E"
-    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#77e6ff" />
     <title>{title}</title>
   </head>
   <body>
@@ -36,11 +34,12 @@ const canonical = new URL(
         <a class="brand" href="/" aria-label="Atrinik Observatory home">
           <span class="brand-mark" aria-hidden="true"><i></i></span>
           <span class="brand-copy">
-            <span class="brand-name">Atrinik Observatory</span>
+            <span class="brand-name">Atrinik</span>
+            <span class="brand-subtitle">Observatory</span>
           </span>
         </a>
         <nav aria-label="Primary navigation">
-          <a href="#dashboard">Dashboard</a>
+          <a href="#dashboard" aria-current="page">Dashboard</a>
           <a href="#services">Services</a>
           <a href="#about">About</a>
         </nav>
@@ -49,7 +48,7 @@ const canonical = new URL(
           href="https://github.com/atrinik/observatory"
           aria-label="View Observatory on GitHub"
         >
-          <span>Source</span><span aria-hidden="true">↗</span>
+          <span>GitHub</span><span aria-hidden="true">↗</span>
         </a>
       </div>
     </header>
