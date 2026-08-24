@@ -7,6 +7,7 @@ describe("status presentation helpers", () => {
     ["failed", "Failed"],
     ["cancelled", "Cancelled"],
     ["running", "Running"],
+    ["attention", "Attention"],
     ["stale", "Stale"],
     ["not-tracked", "Not tracked"],
     ["awaiting-review", "Awaiting Review"],

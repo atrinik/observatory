@@ -61,16 +61,34 @@ therefore retained as history but cannot replace a newer observation.
 Build, release, and package evidence are intentionally independent. A passing
 workflow is never used to synthesize a release or package row.
 
-## Service probes
+## Service probes and metaserver surfaces
 
 `service_probes` is a small allowlist of public URLs. The scheduled probe Worker
 records only status, status code, response time, observation time, and a bounded
-error string in `service_observations`. It cancels the response body without
-reading or retaining it.
+error string in `service_observations`. The Classic metaserver has four
+independent listing probes for `/`, `/index.html`, `/index.json`, and
+`/index.xml`. A successful listing response may also contribute a bounded,
+normalized generation and entry count; the body is never stored.
+
+The API aggregates those four rows into a `surfaces.listings` payload. Each
+format remains visible, and missing, failed, stale, or cross-format generation /
+summary skew cannot be hidden by another healthy format. `crossFormatSkew` is
+only asserted when at least two bounded parity keys are available.
+
+Rendezvous is a separate `surfaces.rendezvous` payload. The current
+`metaserver-worker` contract exposes authenticated, server-ID-specific WebSocket
+routes and no safe public aggregate for route reachability, authenticated
+controls, or recent admission. Observatory therefore reports the surface as
+`unknown`, with a documented reason and contract link. It does not enumerate
+rooms, server IDs, tokens, or private telemetry. The surface is not silently
+treated as `not-tracked` and cannot be hidden by healthy listings.
 
 The API marks a service `stale` after its probe-specific threshold. No row means
-`unknown`; a failed HTTP response is `failed`. Neither condition is rendered as
-healthy.
+`unknown`; a failed HTTP response is `failed`; a partial or skewed listing set is
+`attention`. Neither condition is rendered as healthy. The public status
+document keeps `services[...].surfaces.listings` and
+`services[...].surfaces.rendezvous` independent so SSR and client refresh share
+the same semantics.
 
 ## API document
 

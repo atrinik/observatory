@@ -1,5 +1,10 @@
 import type { ComponentCoordinate, ServiceProbe } from "./types";
 
+export const METASERVER_LISTING_EVIDENCE_URL =
+  "https://github.com/atrinik/metaserver-worker/blob/main/docs/routes.md";
+export const METASERVER_RENDEZVOUS_EVIDENCE_URL =
+  "https://github.com/atrinik/metaserver-worker/blob/main/docs/routes.md";
+
 type CoordinateDefinition = Pick<
   ComponentCoordinate,
   "component" | "repository" | "generation" | "deploymentApplicable"
@@ -171,13 +176,59 @@ export const SERVICE_PROBES: ServiceProbe[] = [
     url: "https://atrinik.org/",
     stack: "default",
     staleAfterSeconds: 1800,
+    surface: "service",
+    format: null,
+    evidenceUrl: "https://atrinik.org/",
   },
   {
     id: "metaserver",
-    name: "Atrinik metaserver",
+    name: "Classic listings · HTML",
     url: "https://classic.meta.atrinik.org/index.html",
     stack: "default",
     staleAfterSeconds: 1800,
+    surface: "listings",
+    format: "html",
+    evidenceUrl: "https://classic.meta.atrinik.org/index.html",
+  },
+  {
+    id: "metaserver:listings:root",
+    name: "Classic listings · root",
+    url: "https://classic.meta.atrinik.org/",
+    stack: "default",
+    staleAfterSeconds: 1800,
+    surface: "listings",
+    format: "root",
+    evidenceUrl: "https://classic.meta.atrinik.org/",
+  },
+  {
+    id: "metaserver:listings:json",
+    name: "Classic listings · JSON",
+    url: "https://classic.meta.atrinik.org/index.json",
+    stack: "default",
+    staleAfterSeconds: 1800,
+    surface: "listings",
+    format: "json",
+    evidenceUrl: "https://classic.meta.atrinik.org/index.json",
+  },
+  {
+    id: "metaserver:listings:xml",
+    name: "Classic listings · XML",
+    url: "https://classic.meta.atrinik.org/index.xml",
+    stack: "default",
+    staleAfterSeconds: 1800,
+    surface: "listings",
+    format: "xml",
+    evidenceUrl: "https://classic.meta.atrinik.org/index.xml",
+  },
+  {
+    id: "metaserver:rendezvous",
+    name: "Rendezvous rooms",
+    url: "https://rendezvous.meta.atrinik.org/",
+    stack: "default",
+    staleAfterSeconds: 1800,
+    surface: "rendezvous",
+    format: null,
+    evidenceUrl: METASERVER_RENDEZVOUS_EVIDENCE_URL,
   },
 ];
 

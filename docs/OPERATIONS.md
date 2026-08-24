@@ -11,6 +11,8 @@ deployment. Interpret statuses as follows:
 - `cancelled`: the latest evidence was cancelled or deactivated;
 - `running`: the latest evidence is queued or active;
 - `stale`: the latest evidence is older than its threshold; and
+- `attention`: an aggregate surface is incomplete or internally inconsistent;
+  inspect its aligned child rows; and
 - `unknown`: there is no usable observation or the source did not expose a known
   conclusion; and
 - `not-tracked`: this coordinate has no configured deployment surface, so the
@@ -20,6 +22,12 @@ Only `passed` is healthy. A coordinate can have a passed build while its release
 or package remains unknown. `not-tracked` applies only to the deployment signal;
 it is excluded from the coordinate overall status rather than being treated as
 a pass or an unknown failure.
+
+The metaserver card has independent `Listings` and `Rendezvous rooms` rows.
+Listings require all four static aliases to agree when bounded generation or
+entry metadata is available. Rendezvous remains `unknown` until an operator-safe
+aggregate source exists; do not infer room health from a reachable WebSocket
+authority and do not enumerate private rooms or server IDs.
 
 ## Reconcile missed events
 
@@ -48,6 +56,11 @@ LIMIT 20;
 
 SELECT coordinate_id, kind, status, observed_at, source_url
 FROM coordinate_observations
+ORDER BY observed_at DESC
+LIMIT 50;
+
+SELECT probe_id, format, status, observed_at, generation, entry_count, parity_key
+FROM service_observations
 ORDER BY observed_at DESC
 LIMIT 50;
 ```

@@ -16,7 +16,12 @@
     "generatedAt": { "type": ["string", "null"], "format": "date-time" },
     "staleAfterSeconds": { "type": "integer", "minimum": 1 },
     "coordinates": { "type": "array", "items": { "$ref": "#/$defs/coordinate" } },
-    "services": { "type": "array", "items": { "$ref": "#/$defs/service" } },
+    "services": {
+      "type": "array",
+      "items": {
+        "oneOf": [{ "$ref": "#/$defs/service" }, { "$ref": "#/$defs/metaserver" }]
+      }
+    },
     "summary": {
       "type": "object",
       "required": ["total", "healthy", "attention", "stale", "unknown"],
@@ -31,19 +36,23 @@
     }
   },
   "$defs": {
-    "status": {
-      "enum": ["passed", "failed", "cancelled", "running", "unknown", "stale"]
+    "observationStatus": {
+      "enum": ["passed", "failed", "cancelled", "running", "unknown"]
     },
-    "evidenceStatus": {
+    "displayStatus": {
       "enum": [
         "passed",
         "failed",
         "cancelled",
         "running",
         "unknown",
+        "attention",
         "stale",
         "not-tracked"
       ]
+    },
+    "listingFormat": {
+      "enum": ["root", "html", "json", "xml"]
     },
     "coordinate": {
       "type": "object",
@@ -67,7 +76,7 @@
         "stack": { "enum": ["default", "classic"] },
         "generation": { "enum": ["replacement", "classic", "shared"] },
         "deploymentApplicable": { "type": "boolean" },
-        "overall": { "$ref": "#/$defs/status" },
+        "overall": { "$ref": "#/$defs/displayStatus" },
         "build": { "$ref": "#/$defs/evidence" },
         "release": { "$ref": "#/$defs/evidence" },
         "package": { "$ref": "#/$defs/evidence" },
@@ -88,14 +97,54 @@
         "mostRecentFailure"
       ],
       "properties": {
-        "status": { "$ref": "#/$defs/evidenceStatus" },
-        "lastObservedStatus": { "type": ["string", "null"] },
-        "observedAt": { "type": ["string", "null"] },
+        "status": { "$ref": "#/$defs/displayStatus" },
+        "lastObservedStatus": {
+          "anyOf": [{ "$ref": "#/$defs/observationStatus" }, { "type": "null" }]
+        },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
         "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
         "stale": { "type": "boolean" },
-        "latest": { "type": ["object", "null"] },
-        "lastKnownGood": { "type": ["object", "null"] },
-        "mostRecentFailure": { "type": ["object", "null"] }
+        "latest": {
+          "anyOf": [{ "$ref": "#/$defs/evidenceRecord" }, { "type": "null" }]
+        },
+        "lastKnownGood": {
+          "anyOf": [{ "$ref": "#/$defs/evidenceRecord" }, { "type": "null" }]
+        },
+        "mostRecentFailure": {
+          "anyOf": [{ "$ref": "#/$defs/evidenceRecord" }, { "type": "null" }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceRecord": {
+      "type": "object",
+      "required": [
+        "id",
+        "status",
+        "observedAt",
+        "receivedAt",
+        "ref",
+        "commitSha",
+        "title",
+        "sourceUrl",
+        "workflowName",
+        "releaseTag",
+        "packageUrl",
+        "artifactUrl"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "$ref": "#/$defs/observationStatus" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "receivedAt": { "type": "string", "format": "date-time" },
+        "ref": { "type": ["string", "null"] },
+        "commitSha": { "type": ["string", "null"] },
+        "title": { "type": "string" },
+        "sourceUrl": { "type": ["string", "null"], "format": "uri" },
+        "workflowName": { "type": ["string", "null"] },
+        "releaseTag": { "type": ["string", "null"] },
+        "packageUrl": { "type": ["string", "null"], "format": "uri" },
+        "artifactUrl": { "type": ["string", "null"], "format": "uri" }
       },
       "additionalProperties": false
     },
@@ -107,6 +156,9 @@
         "url",
         "stack",
         "staleAfterSeconds",
+        "surface",
+        "format",
+        "evidenceUrl",
         "status",
         "lastObservedStatus",
         "observedAt",
@@ -122,14 +174,186 @@
         "url": { "type": "string", "format": "uri" },
         "stack": { "enum": ["default", "classic"] },
         "staleAfterSeconds": { "type": "integer", "minimum": 1 },
-        "status": { "$ref": "#/$defs/status" },
-        "lastObservedStatus": { "type": ["string", "null"] },
-        "observedAt": { "type": ["string", "null"] },
+        "surface": { "const": "service" },
+        "format": { "type": "null" },
+        "evidenceUrl": { "type": ["string", "null"], "format": "uri" },
+        "status": { "$ref": "#/$defs/displayStatus" },
+        "lastObservedStatus": {
+          "anyOf": [{ "$ref": "#/$defs/observationStatus" }, { "type": "null" }]
+        },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
         "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
         "stale": { "type": "boolean" },
         "statusCode": { "type": ["integer", "null"] },
-        "responseMs": { "type": ["integer", "null"] },
+        "responseMs": { "type": ["integer", "null"], "minimum": 0 },
         "error": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "listingFormatSummary": {
+      "type": "object",
+      "required": [
+        "format",
+        "label",
+        "url",
+        "status",
+        "lastObservedStatus",
+        "observedAt",
+        "ageSeconds",
+        "stale",
+        "statusCode",
+        "responseMs",
+        "generation",
+        "entryCount",
+        "parityKey",
+        "error"
+      ],
+      "properties": {
+        "format": { "$ref": "#/$defs/listingFormat" },
+        "label": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "status": { "$ref": "#/$defs/displayStatus" },
+        "lastObservedStatus": {
+          "anyOf": [{ "$ref": "#/$defs/observationStatus" }, { "type": "null" }]
+        },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "stale": { "type": "boolean" },
+        "statusCode": { "type": ["integer", "null"] },
+        "responseMs": { "type": ["integer", "null"], "minimum": 0 },
+        "generation": { "type": ["string", "null"] },
+        "entryCount": { "type": ["integer", "null"], "minimum": 0 },
+        "parityKey": { "type": ["string", "null"] },
+        "error": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "listingsSurface": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "status",
+        "observedAt",
+        "ageSeconds",
+        "stale",
+        "requiredFormats",
+        "availableFormats",
+        "generation",
+        "entryCount",
+        "crossFormatSkew",
+        "evidenceUrl",
+        "formats"
+      ],
+      "properties": {
+        "id": { "const": "listings" },
+        "name": { "const": "Listings" },
+        "status": { "$ref": "#/$defs/displayStatus" },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "stale": { "type": "boolean" },
+        "requiredFormats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/listingFormat" },
+          "minItems": 4,
+          "uniqueItems": true
+        },
+        "availableFormats": { "type": "integer", "minimum": 0 },
+        "generation": { "type": ["string", "null"] },
+        "entryCount": { "type": ["integer", "null"], "minimum": 0 },
+        "crossFormatSkew": { "type": "boolean" },
+        "evidenceUrl": { "type": ["string", "null"], "format": "uri" },
+        "formats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/listingFormatSummary" },
+          "minItems": 4
+        }
+      },
+      "additionalProperties": false
+    },
+    "rendezvousSurface": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "status",
+        "observedAt",
+        "ageSeconds",
+        "stale",
+        "routeStatus",
+        "controlsStatus",
+        "admissionStatus",
+        "observationSource",
+        "safeObservationAvailable",
+        "evidenceUrl",
+        "error"
+      ],
+      "properties": {
+        "id": { "const": "rendezvous" },
+        "name": { "const": "Rendezvous rooms" },
+        "status": { "$ref": "#/$defs/displayStatus" },
+        "observedAt": { "const": null },
+        "ageSeconds": { "const": null },
+        "stale": { "const": false },
+        "routeStatus": { "$ref": "#/$defs/displayStatus" },
+        "controlsStatus": { "$ref": "#/$defs/displayStatus" },
+        "admissionStatus": { "$ref": "#/$defs/displayStatus" },
+        "observationSource": { "type": ["string", "null"] },
+        "safeObservationAvailable": { "const": false },
+        "evidenceUrl": { "type": ["string", "null"], "format": "uri" },
+        "error": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "metaserver": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "url",
+        "stack",
+        "staleAfterSeconds",
+        "surface",
+        "format",
+        "evidenceUrl",
+        "status",
+        "lastObservedStatus",
+        "observedAt",
+        "ageSeconds",
+        "stale",
+        "statusCode",
+        "responseMs",
+        "error",
+        "surfaces"
+      ],
+      "properties": {
+        "id": { "const": "metaserver" },
+        "name": { "const": "Atrinik metaserver" },
+        "url": { "type": "string", "format": "uri" },
+        "stack": { "enum": ["default", "classic"] },
+        "staleAfterSeconds": { "type": "integer", "minimum": 1 },
+        "surface": { "const": "metaserver" },
+        "format": { "type": "null" },
+        "evidenceUrl": { "type": ["string", "null"], "format": "uri" },
+        "status": { "$ref": "#/$defs/displayStatus" },
+        "lastObservedStatus": {
+          "anyOf": [{ "$ref": "#/$defs/observationStatus" }, { "type": "null" }]
+        },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "stale": { "type": "boolean" },
+        "statusCode": { "type": ["integer", "null"] },
+        "responseMs": { "type": ["integer", "null"], "minimum": 0 },
+        "error": { "type": ["string", "null"] },
+        "surfaces": {
+          "type": "object",
+          "required": ["listings", "rendezvous"],
+          "properties": {
+            "listings": { "$ref": "#/$defs/listingsSurface" },
+            "rendezvous": { "$ref": "#/$defs/rendezvousSurface" }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     }
