@@ -8,6 +8,7 @@ describe("status presentation helpers", () => {
     ["cancelled", "Cancelled"],
     ["running", "Running"],
     ["stale", "Stale"],
+    ["not-tracked", "Not tracked"],
     ["awaiting-review", "Awaiting Review"],
   ])("labels %s as %s", (status, label) => {
     expect(statusLabel(status)).toBe(label);

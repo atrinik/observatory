@@ -6,6 +6,7 @@ const requiredFiles = [
   "deployment/cloudflare-pages.json",
   "deployment/cloudflare-probes.json",
   "migrations/0001_initial.sql",
+  "migrations/0003_deployment_applicability.sql",
   "public/_routes.json",
 ];
 
@@ -18,6 +19,10 @@ const probesConfig = await readFile("deployment/cloudflare-probes.json", "utf8")
 const pagesWrangler = await readFile("wrangler.jsonc", "utf8");
 const probesWrangler = await readFile("wrangler.probes.jsonc", "utf8");
 const migration = await readFile("migrations/0001_initial.sql", "utf8");
+const applicabilityMigration = await readFile(
+  "migrations/0003_deployment_applicability.sql",
+  "utf8",
+);
 const routes = await readFile("dist/_routes.json", "utf8");
 
 const forbidden = ["CLOUDFLARE_API_TOKEN", "GITHUB_WEBHOOK_SECRET=", "Bearer "];
@@ -40,6 +45,15 @@ for (const marker of [
   "service_observations",
 ]) {
   if (!migration.includes(marker)) throw new Error(`migration is missing ${marker}`);
+}
+for (const marker of [
+  "deployment_applicable",
+  "default:resources",
+  "classic:resources",
+]) {
+  if (!applicabilityMigration.includes(marker)) {
+    throw new Error(`deployment applicability migration is missing ${marker}`);
+  }
 }
 
 if (!pagesConfig.includes('"noManualDashboardDeployment": true')) {

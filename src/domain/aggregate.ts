@@ -50,6 +50,13 @@ function emptyEvidence(): EvidenceSummary {
   };
 }
 
+function notTrackedEvidence(): EvidenceSummary {
+  return {
+    ...emptyEvidence(),
+    status: "not-tracked",
+  };
+}
+
 function summarizeEvidence(
   records: EvidenceRecord[],
   now: Date,
@@ -96,12 +103,19 @@ function worstStatus(
 function coordinateOverall(
   coordinate: DashboardCoordinate,
 ): ObservationStatus | "stale" {
-  return worstStatus([
+  const statuses = [
     coordinate.build.status,
     coordinate.release.status,
     coordinate.package.status,
-    coordinate.deployment.status,
-  ]);
+  ].map((status) => (status === "not-tracked" ? "unknown" : status));
+  if (coordinate.deploymentApplicable) {
+    statuses.push(
+      coordinate.deployment.status === "not-tracked"
+        ? "unknown"
+        : coordinate.deployment.status,
+    );
+  }
+  return worstStatus(statuses);
 }
 
 function aggregateSummary(coordinates: DashboardCoordinate[]) {
@@ -134,6 +148,22 @@ function coordinateEvidence(
     )
     .map(({ coordinateId: _coordinateId, kind: _kind, ...record }) => record);
   return summarizeEvidence(records, now, staleAfterSeconds);
+}
+
+function deploymentEvidence(
+  coordinate: ComponentCoordinate,
+  observations: StoredObservation[],
+  now: Date,
+  staleAfterSeconds: number,
+): EvidenceSummary {
+  if (!coordinate.deploymentApplicable) return notTrackedEvidence();
+  return coordinateEvidence(
+    coordinate,
+    observations,
+    "deployment",
+    now,
+    staleAfterSeconds,
+  );
 }
 
 function serviceSummary(
@@ -213,13 +243,7 @@ export function aggregateDashboard(
         now,
         staleAfterSeconds,
       ),
-      deployment: coordinateEvidence(
-        coordinate,
-        observations,
-        "deployment",
-        now,
-        staleAfterSeconds,
-      ),
+      deployment: deploymentEvidence(coordinate, observations, now, staleAfterSeconds),
     };
     dashboardCoordinate.overall = coordinateOverall(dashboardCoordinate);
     return dashboardCoordinate;

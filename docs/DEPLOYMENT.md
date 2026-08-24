@@ -40,7 +40,10 @@ Verify the coordinate and probe seed rows with a read-only query. A migration
 must be reviewed and applied before a deployment that relies on new columns.
 The forward migration `0002_update_metaserver_probe.sql` also aligns existing
 `metaserver` rows with the attached Classic directory artifact before the probe
-Worker is deployed.
+Worker is deployed. The forward migration
+`0003_deployment_applicability.sql` adds the explicit per-coordinate deployment
+capability and marks shared asset coordinates such as `resources` as
+non-applicable.
 
 ## Pages project
 

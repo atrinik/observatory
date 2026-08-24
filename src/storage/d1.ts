@@ -16,6 +16,7 @@ interface CoordinateRow {
   component: string;
   stack: "default" | "classic";
   generation: "replacement" | "classic" | "shared";
+  deployment_applicable: number;
 }
 
 interface ObservationRow {
@@ -67,6 +68,7 @@ function toCoordinate(row: CoordinateRow): ComponentCoordinate {
     component: row.component,
     stack: row.stack,
     generation: row.generation,
+    deploymentApplicable: row.deployment_applicable === 1,
   };
 }
 
@@ -125,7 +127,7 @@ export async function readDashboard(
     await Promise.all([
       db
         .prepare(
-          "SELECT id, repository, component, stack, generation FROM component_coordinates ORDER BY stack, component",
+          "SELECT id, repository, component, stack, generation, deployment_applicable FROM component_coordinates ORDER BY stack, component",
         )
         .all<CoordinateRow>(),
       db
@@ -169,7 +171,7 @@ export async function recordGitHubDelivery(
 ): Promise<DeliveryResult> {
   const coordinates = await db
     .prepare(
-      "SELECT id, repository, component, stack, generation FROM component_coordinates WHERE repository = ? ORDER BY stack, component",
+      "SELECT id, repository, component, stack, generation, deployment_applicable FROM component_coordinates WHERE repository = ? ORDER BY stack, component",
     )
     .bind(normalized[0]?.repository ?? "")
     .all<CoordinateRow>();
