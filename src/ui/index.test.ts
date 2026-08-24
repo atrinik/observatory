@@ -82,5 +82,11 @@ describe("initial stack view markup", () => {
     expect(styles).toContain(".matrix-header,");
     expect(styles).toContain(".status-label,");
     expect(styles).toContain("font-family: var(--sans);");
+    expect(styles).toContain(".site-header .brand-mark::before");
+    expect(styles).toContain("left: 50%;\n  transform: translate(-50%, -50%);");
+    expect(styles).toContain("inset: 0;\n  display: grid;\n  place-items: center;");
+    expect(source).toContain('class="service-card-main"');
+    expect(styles).toContain(".service-card-main");
+    expect(styles).toContain(".service-grid .status-unknown .status-icon::after");
   });
 });

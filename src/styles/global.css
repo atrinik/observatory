@@ -3228,3 +3228,68 @@ body {
     font-size: 1rem;
   }
 }
+
+/* Keep text glyphs and the header crystal centered by their actual boxes. */
+.site-header .brand-mark::before {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.site-header .brand-mark::after {
+  left: 50%;
+}
+
+.service-card-main {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.matrix-signal .status-unknown .status-icon::after,
+.surface-row .status-unknown .status-icon::after,
+.service-card-heading > .status-unknown .status-icon::after,
+.service-title-row > .status-unknown .status-icon::after,
+.detail-signal-heading > .status-unknown .status-icon::after,
+.matrix-signal .status-attention .status-icon::after,
+.matrix-signal .status-stale .status-icon::after,
+.surface-row .status-attention .status-icon::after,
+.surface-row .status-stale .status-icon::after,
+.service-card-heading > .status-attention .status-icon::after,
+.service-card-heading > .status-stale .status-icon::after,
+.service-title-row > .status-attention .status-icon::after,
+.service-title-row > .status-stale .status-icon::after,
+.detail-signal-heading > .status-attention .status-icon::after,
+.detail-signal-heading > .status-stale .status-icon::after,
+.matrix-signal .status-failed .status-icon::after,
+.matrix-signal .status-cancelled .status-icon::after,
+.surface-row .status-failed .status-icon::after,
+.surface-row .status-cancelled .status-icon::after,
+.service-card-heading > .status-failed .status-icon::after,
+.service-card-heading > .status-cancelled .status-icon::after,
+.service-title-row > .status-failed .status-icon::after,
+.service-title-row > .status-cancelled .status-icon::after,
+.detail-signal-heading > .status-failed .status-icon::after,
+.detail-signal-heading > .status-cancelled .status-icon::after {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+
+.service-grid .status-unknown .status-icon::after,
+.service-grid .status-attention .status-icon::after,
+.service-grid .status-stale .status-icon::after,
+.service-grid .status-failed .status-icon::after,
+.service-grid .status-cancelled .status-icon::after {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  line-height: 1;
+  text-align: center;
+  transform: none;
+}
