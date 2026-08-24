@@ -52,6 +52,7 @@ function evidenceHref(evidence: EvidenceSummary): string | null {
 }
 
 const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
+const initialStack = "classic" as "default" | "classic";
 ---
 
 <Base
@@ -127,20 +128,20 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
 
     <div class="stack-switcher" role="tablist" aria-label="Stack view">
       <button
-        class="stack-tab is-active"
+        class:list={["stack-tab", { "is-active": initialStack === "default" }]}
         type="button"
         role="tab"
-        aria-selected="true"
+        aria-selected={initialStack === "default" ? "true" : "false"}
         aria-controls="stack-default"
         data-stack-tab="default"
       >
         <span class="tab-mark tab-mark-blue"></span> Replacement / default
       </button>
       <button
-        class="stack-tab"
+        class:list={["stack-tab", { "is-active": initialStack === "classic" }]}
         type="button"
         role="tab"
-        aria-selected="false"
+        aria-selected={initialStack === "classic" ? "true" : "false"}
         aria-controls="stack-classic"
         data-stack-tab="classic"
       >
@@ -159,7 +160,7 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
             class="stack-panel"
             data-stack-panel={stack}
             aria-labelledby={`stack-${stack}-title`}
-            hidden={stack !== "default"}
+            hidden={stack !== initialStack}
           >
             <div class="stack-heading">
               <div>
