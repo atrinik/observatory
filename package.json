@@ -24,10 +24,12 @@
     "pages:build": "npm run build && wrangler pages functions build functions --outdir .wrangler/functions --project-directory . --build-output-directory dist --output-routes-path dist/_routes.json && node scripts/prepare-pages.mjs",
     "pages:dev": "npm run pages:build && wrangler pages dev dist",
     "db:migrate:local": "wrangler d1 migrations apply atrinik-observatory-local --local -c wrangler.jsonc",
-    "deploy:dry-run": "npm run pages:build && wrangler deploy --dry-run -c wrangler.probes.jsonc --env preview && node scripts/validate-deployment.mjs",
+    "db:migrate:production": "wrangler d1 migrations apply atrinik-observatory --remote -c wrangler.jsonc --env production",
+    "deploy:dry-run": "npm run pages:build && wrangler deploy --dry-run -c wrangler.probes.jsonc && wrangler deploy --dry-run -c wrangler.probes.production.jsonc && node scripts/validate-deployment.mjs",
     "deploy:pages": "npm run pages:build && wrangler pages deploy dist --project-name atrinik-observatory",
-    "deploy:probes": "wrangler deploy -c wrangler.probes.jsonc --env production",
-    "deploy:production": "npm run deploy:pages && npm run deploy:probes"
+    "deploy:probes": "wrangler deploy -c wrangler.probes.production.jsonc",
+    "deploy:production": "npm run db:migrate:production && npm run deploy:pages && npm run deploy:probes && npm run verify:production",
+    "verify:production": "node scripts/verify-production.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

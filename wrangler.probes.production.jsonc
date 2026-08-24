@@ -1,21 +1,21 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "atrinik-observatory-probes-preview",
+  "name": "atrinik-observatory-probes",
   "main": "src/probe-worker.ts",
   "compatibility_date": "2026-08-18",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "atrinik-observatory-preview",
-      "database_id": "8e21bf32-ed2c-47d8-8df3-0f58346ef370",
+      "database_name": "atrinik-observatory",
+      "database_id": "dd64e9e5-807c-4700-9b05-60eff63e3061",
       "migrations_dir": "migrations",
     },
   ],
   "vars": {
-    "OBSERVATORY_ENV": "preview",
+    "OBSERVATORY_ENV": "production",
     "PROBE_TIMEOUT_MS": "5000",
   },
   "triggers": {

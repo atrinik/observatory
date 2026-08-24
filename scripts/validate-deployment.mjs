@@ -3,11 +3,14 @@ import { readFile } from "node:fs/promises";
 const requiredFiles = [
   "wrangler.jsonc",
   "wrangler.probes.jsonc",
+  "wrangler.probes.production.jsonc",
+  ".github/workflows/deploy.yml",
   "deployment/cloudflare-pages.json",
   "deployment/cloudflare-probes.json",
   "migrations/0001_initial.sql",
   "migrations/0003_deployment_applicability.sql",
   "public/_routes.json",
+  "scripts/verify-production.mjs",
 ];
 
 for (const file of requiredFiles) {
@@ -16,14 +19,21 @@ for (const file of requiredFiles) {
 
 const pagesConfig = await readFile("deployment/cloudflare-pages.json", "utf8");
 const probesConfig = await readFile("deployment/cloudflare-probes.json", "utf8");
+const releaseWorkflow = await readFile(".github/workflows/deploy.yml", "utf8");
 const pagesWrangler = await readFile("wrangler.jsonc", "utf8");
 const probesWrangler = await readFile("wrangler.probes.jsonc", "utf8");
+const productionProbesWrangler = await readFile(
+  "wrangler.probes.production.jsonc",
+  "utf8",
+);
 const migration = await readFile("migrations/0001_initial.sql", "utf8");
 const applicabilityMigration = await readFile(
   "migrations/0003_deployment_applicability.sql",
   "utf8",
 );
 const routes = await readFile("dist/_routes.json", "utf8");
+const pagesContract = JSON.parse(pagesConfig);
+const packageManifest = JSON.parse(await readFile("package.json", "utf8"));
 
 const forbidden = ["CLOUDFLARE_API_TOKEN", "GITHUB_WEBHOOK_SECRET=", "Bearer "];
 for (const [name, content] of Object.entries({
@@ -31,6 +41,7 @@ for (const [name, content] of Object.entries({
   probesConfig,
   pagesWrangler,
   probesWrangler,
+  productionProbesWrangler,
 })) {
   for (const marker of forbidden) {
     if (content.includes(marker)) {
@@ -58,6 +69,110 @@ for (const marker of [
 
 if (!pagesConfig.includes('"noManualDashboardDeployment": true')) {
   throw new Error("Pages contract must reject manual-only deployment");
+}
+if (
+  !probesConfig.includes('"previewConfig": "wrangler.probes.jsonc"') ||
+  !probesConfig.includes('"productionConfig": "wrangler.probes.production.jsonc"')
+) {
+  throw new Error("probe contract must separate preview and production configs");
+}
+for (const marker of [
+  '"name": "atrinik-observatory-probes-preview"',
+  '"database_name": "atrinik-observatory-preview"',
+  '"OBSERVATORY_ENV": "preview"',
+  '"workers_dev": true',
+]) {
+  if (!probesWrangler.includes(marker)) {
+    throw new Error(`preview probe config is missing required contract: ${marker}`);
+  }
+}
+if (
+  probesWrangler.includes('"name": "atrinik-observatory-probes",') ||
+  probesWrangler.includes('"database_name": "atrinik-observatory",') ||
+  probesWrangler.includes('"OBSERVATORY_ENV": "production"') ||
+  probesWrangler.includes('"env": {')
+) {
+  throw new Error("preview probe config must not contain a production environment");
+}
+for (const marker of [
+  '"name": "atrinik-observatory-probes"',
+  '"database_name": "atrinik-observatory"',
+  '"OBSERVATORY_ENV": "production"',
+  '"workers_dev": false',
+]) {
+  if (!productionProbesWrangler.includes(marker)) {
+    throw new Error(`production probe config is missing required contract: ${marker}`);
+  }
+}
+if (
+  productionProbesWrangler.includes('"database_name": "atrinik-observatory-preview"')
+) {
+  throw new Error("production probe config must not use the preview database");
+}
+if (
+  !packageManifest.scripts["deploy:dry-run"].includes("-c wrangler.probes.jsonc") ||
+  !packageManifest.scripts["deploy:dry-run"].includes(
+    "-c wrangler.probes.production.jsonc",
+  ) ||
+  packageManifest.scripts["deploy:dry-run"].includes("--env production") ||
+  !packageManifest.scripts["deploy:probes"].includes(
+    "-c wrangler.probes.production.jsonc",
+  )
+) {
+  throw new Error("probe deployment scripts must select the safe config explicitly");
+}
+if (pagesContract.preview.database === pagesContract.production.database) {
+  throw new Error("preview and production Pages databases must be separate");
+}
+if (
+  pagesContract.production.source !== "github-actions" ||
+  pagesContract.production.workflow !== ".github/workflows/deploy.yml" ||
+  pagesContract.production.environment !== "production"
+) {
+  throw new Error(
+    "Pages production deployment must use the protected Actions workflow",
+  );
+}
+if (
+  !pagesContract.production.postDeploySmokePaths.includes("/api/healthz") ||
+  !pagesContract.production.postDeploySmokePaths.includes("/api/status")
+) {
+  throw new Error("Pages production contract must require both API smoke paths");
+}
+for (const marker of [
+  "on:\n  push:\n    branches: [main]",
+  "permissions:\n  contents: read",
+  "environment:\n      name: production",
+  "CLOUDFLARE_D1_API_TOKEN",
+  "CLOUDFLARE_DEPLOY_API_TOKEN",
+  "npm run db:migrate:production",
+  "npm run deploy:pages",
+  "npm run deploy:probes",
+  "npm run verify:production",
+  "npx wrangler d1 migrations list atrinik-observatory --remote",
+]) {
+  if (!releaseWorkflow.includes(marker)) {
+    throw new Error(`production workflow is missing required contract: ${marker}`);
+  }
+}
+if (releaseWorkflow.includes("pull_request:")) {
+  throw new Error("production credentials must not be reachable from pull requests");
+}
+const migrationStep = releaseWorkflow.indexOf("npm run db:migrate:production");
+const pagesStep = releaseWorkflow.indexOf("npm run deploy:pages");
+const probesStep = releaseWorkflow.indexOf("npm run deploy:probes");
+const smokeStep = releaseWorkflow.indexOf("npm run verify:production");
+if (!(migrationStep < pagesStep && pagesStep < probesStep && probesStep < smokeStep)) {
+  throw new Error(
+    "production workflow must migrate before deployment and smoke verification",
+  );
+}
+const validationWorkflow = await readFile(".github/workflows/validate.yml", "utf8");
+if (
+  validationWorkflow.includes("CLOUDFLARE_D1_API_TOKEN") ||
+  validationWorkflow.includes("CLOUDFLARE_DEPLOY_API_TOKEN")
+) {
+  throw new Error("pull-request validation must not reference production credentials");
 }
 if (!routes.includes('"/api/*"') || routes.includes('"/*"')) {
   throw new Error("Pages routes must invoke Functions only for /api/*");

@@ -16,9 +16,12 @@
     "robots": "provider-managed-noindex"
   },
   "production": {
+    "source": "github-actions",
+    "workflow": ".github/workflows/deploy.yml",
+    "environment": "production",
     "database": "atrinik-observatory",
     "webhook": "enabled-with-secret-binding",
-    "postDeploySmokePath": "/api/healthz"
+    "postDeploySmokePaths": ["/api/healthz", "/api/status"]
   },
   "secrets": ["GITHUB_WEBHOOK_SECRET"],
   "noManualDashboardDeployment": true,
