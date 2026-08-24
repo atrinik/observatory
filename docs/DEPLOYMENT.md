@@ -16,7 +16,10 @@ The checked-in files are the reviewable source of truth:
 
 The zero UUIDs in the Wrangler files are inert placeholders. Replace them only
 with the IDs returned by the intended Cloudflare account. Never replace them
-with a token or commit a secret.
+with a token or commit a secret. Production deployment is owned by the
+protected [GitHub Actions workflow](../.github/workflows/deploy.yml); a merge
+must not trigger an independent provider deployment before that workflow has
+applied the reviewed migrations.
 
 ## Provisioning
 
@@ -48,9 +51,9 @@ non-applicable.
 ## Pages project
 
 Connect `atrinik/observatory` to a Cloudflare Pages project named
-`atrinik-observatory` using the Git integration:
+`atrinik-observatory`. Use the Git integration for previews only:
 
-- production branch: `main`;
+- production branch deployment: disabled in the provider integration;
 - build command: `npm ci && npm run build`;
 - output directory: `dist`;
 - preview branches: all non-production branches;
@@ -85,23 +88,26 @@ must use `preview` and must not run production service probes. The production
 cron is `*/5 * * * *`; configure the same trigger from
 `wrangler.probes.jsonc` rather than adding a dashboard-only schedule.
 
-For a separately authenticated operator deploy, the commands are:
+For a separately authenticated preview deploy, the command is:
 
 ```sh
 npx wrangler deploy -c wrangler.probes.jsonc --env preview
-npx wrangler deploy -c wrangler.probes.jsonc --env production
 ```
 
-Workers Builds or the repository's approved CI connection must own routine
-deployments so a merge to `main` deploys without a manual dashboard action.
+The production Worker deploy is part of the protected GitHub Actions release
+after the production D1 migration succeeds. Do not connect Workers Builds or a
+provider dashboard directly to the production branch, because that would allow
+code to deploy before the migration gate.
 
 ## GitHub connection and previews
 
-Install the Cloudflare GitHub integration only for `atrinik/observatory`. It
-must publish a Pages preview for each pull request and a production deployment
-for `main`. The connected provider should surface the preview URL in the pull
-request deployment/check status. The probe Worker uses an isolated preview
-environment; it does not receive the production webhook secret or production
+Install the Cloudflare GitHub integration only for `atrinik/observatory`'s
+non-production branches. It must publish a Pages preview for each pull request
+and surface the preview URL in the pull request deployment/check status. Its
+preview binding is `atrinik-observatory-preview`; it must not receive the
+production database or webhook secret. The production branch is deployed only
+by `.github/workflows/deploy.yml` after the protected migration step. The probe
+Worker uses an isolated preview environment and does not receive production
 traffic.
 
 Install an organization-level GitHub App/webhook scoped to the configured
@@ -111,23 +117,48 @@ URL, use JSON payloads and the same randomly generated secret, and select only
 the event subscriptions in [`EVENT_CONTRACT.md`](EVENT_CONTRACT.md). Keep
 permissions read-only.
 
+## Protected production environment
+
+Create a GitHub Actions environment named `production` and require explicit
+reviewer approval before a job can enter it. Restrict its deployment branch to
+`main`. Configure only these environment-scoped values:
+
+- variable `CLOUDFLARE_ACCOUNT_ID`;
+- variable `OBSERVATORY_PRODUCTION_URL`, containing the HTTPS origin only;
+- secret `CLOUDFLARE_D1_API_TOKEN`, with only the D1 migration permissions; and
+- secret `CLOUDFLARE_DEPLOY_API_TOKEN`, with only the Pages and Worker deploy
+  permissions.
+
+The pull-request validation workflow has no reference to these values. The
+release workflow uses the D1 token only for migrations and the deploy token
+only for Pages and Worker publication. Do not store either token in repository
+variables, `.dev.vars`, issues, logs, or provider configuration.
+
 ## Smoke checks and rollback
 
-After a production Pages deployment, verify:
+The release workflow applies pending production migrations before deploying
+Pages or the probe Worker. It then verifies both endpoints; `/api/healthz`
+alone is insufficient because it does not read D1:
 
 ```sh
 curl --fail --silent --show-error https://observatory.atrinik.org/api/healthz
 curl --fail --silent --show-error https://observatory.atrinik.org/api/status
 ```
 
-Record the exact Git revision, Pages deployment URL/ID, probe Worker version,
-and D1 migration state. Confirm that a pull request URL uses preview D1 and that
-the production API has the expected `schemaVersion`.
+The workflow records the exact Git revision, workflow run, and `wrangler d1
+migrations list` result in its job summary. It fails closed when the production
+binding is unavailable, a migration fails, either endpoint is non-2xx, or the
+status response is not a schema-version-1 data-backed document. Confirm that a
+pull request URL uses preview D1 and that the production API has the expected
+`schemaVersion`.
 
-If the Pages response or API smoke check fails, promote the last verified Pages
-deployment. If probes fail after a Worker change, roll the Worker back to the
-last verified version. Do not roll back a D1 migration by editing history;
-create a forward migration after assessing retained observations.
+If migration fails, no production deployment step runs. If the Pages response
+or API smoke check fails, stop the release and promote the last verified Pages
+deployment only after confirming it is compatible with the already-applied
+schema. If probes fail after a Worker change, roll the Worker back to the last
+verified version. Never roll back a D1 migration by editing history; preserve
+the database and create a reviewed forward migration after assessing retained
+observations.
 
 Repository changes do not create Cloudflare account resources or GitHub
 connections automatically. Provisioning and connection remain explicit,

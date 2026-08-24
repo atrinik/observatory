@@ -58,14 +58,23 @@ operator-specific data.
 ## D1 migrations
 
 Back up or export the intended database according to the account's retention
-policy before a stateful migration. Apply the migration in preview first, run
-the validation and smoke checks, then apply the exact reviewed file to
-production. Never use `DROP`, `DELETE`, or an in-place schema rewrite as an
-implicit deploy step.
+policy before a stateful migration. Apply the migration in preview first and
+run the validation and smoke checks there. A merge to `main` enters the
+protected `production` environment, where the release workflow applies the
+exact reviewed pending migrations to the production D1 binding before it
+publishes Pages or the probe Worker. The workflow records the revision and
+migration list in its job summary. Never use `DROP`, `DELETE`, or an in-place
+schema rewrite as an implicit deploy step.
+
+After deployment, require both `GET /api/healthz` and the data-backed
+`GET /api/status` to return a valid schema-version-1 response. A healthy
+`/api/healthz` response does not prove that D1 is readable; a 503 or malformed
+status response fails the release.
 
 ## Rollback
 
 Roll back the Pages deployment or probe Worker version independently of D1.
 Retained observations are historical evidence; a code rollback must not delete
-them. If a schema change is incompatible, stop ingestion, preserve the
+them. If a migration has already applied, do not attempt to reverse it through
+Git history or an ad-hoc SQL change. Stop ingestion if necessary, preserve the
 database, and prepare a forward-compatible migration with maintainer approval.
