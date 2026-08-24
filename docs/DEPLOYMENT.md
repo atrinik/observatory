@@ -8,8 +8,10 @@ The checked-in files are the reviewable source of truth:
 
 - [`wrangler.jsonc`](../wrangler.jsonc) configures Pages, Functions, D1, and
   environment variables;
-- [`wrangler.probes.jsonc`](../wrangler.probes.jsonc) configures the scheduled
-  probe Worker; and
+- [`wrangler.probes.jsonc`](../wrangler.probes.jsonc) is the safe
+  preview/local probe configuration;
+- [`wrangler.probes.production.jsonc`](../wrangler.probes.production.jsonc) is
+  selected only by the protected production release; and
 - [`deployment/cloudflare-pages.json`](../deployment/cloudflare-pages.json) and
   [`deployment/cloudflare-probes.json`](../deployment/cloudflare-probes.json)
   record the provider contract.
@@ -30,9 +32,10 @@ npx wrangler d1 create atrinik-observatory-preview
 npx wrangler d1 create atrinik-observatory
 ```
 
-Record the two database IDs in the matching `env.preview` and
-`env.production` bindings in both Wrangler files. Apply the migration explicitly
-to each database before enabling ingestion:
+Record the two database IDs in the Pages `env.preview` and `env.production`
+bindings, the safe probe preview config, and the protected probe production
+config. Apply the migration explicitly to each database before enabling
+ingestion:
 
 ```sh
 npx wrangler d1 migrations apply atrinik-observatory-preview --remote -c wrangler.jsonc --env preview
@@ -81,18 +84,26 @@ the webhook secret with the Pages secret store command above.
 
 ## Probe Worker
 
-Connect the same repository to Workers Builds for
-`atrinik-observatory-probes`, with `src/probe-worker.ts` as the entrypoint.
-Production deploys use the `production` environment and database. Review builds
-must use `preview` and must not run production service probes. The production
-cron is `*/5 * * * *`; configure the same trigger from
-`wrangler.probes.jsonc` rather than adding a dashboard-only schedule.
+Connect the same repository to Workers Builds for the preview worker only, with
+`src/probe-worker.ts` as the entrypoint. The checked-in
+`wrangler.probes.jsonc` names `atrinik-observatory-probes-preview`, uses the
+preview D1 binding, and contains no production environment. The dedicated
+`wrangler.probes.production.jsonc` names `atrinik-observatory-probes` and is
+selected only by the protected release workflow after the migration gate.
+Review builds must use the preview config and must not run production service
+probes. The production cron is `*/5 * * * *`; configure the same trigger from
+both config files rather than adding a dashboard-only schedule.
 
 For a separately authenticated preview deploy, the command is:
 
 ```sh
-npx wrangler deploy -c wrangler.probes.jsonc --env preview
+npx wrangler deploy -c wrangler.probes.jsonc
 ```
+
+Do not configure a provider build to run `wrangler deploy` with the production
+config or `--env production` on pull requests. Such a build must be disabled or
+changed to the preview config before merging this change; the provider must not
+publish the production Worker independently of the protected release.
 
 The production Worker deploy is part of the protected GitHub Actions release
 after the production D1 migration succeeds. Do not connect Workers Builds or a

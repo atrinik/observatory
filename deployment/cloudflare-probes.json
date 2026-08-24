@@ -4,6 +4,8 @@
   "worker": "atrinik-observatory-probes",
   "repository": "atrinik/observatory",
   "entrypoint": "src/probe-worker.ts",
+  "previewConfig": "wrangler.probes.jsonc",
+  "productionConfig": "wrangler.probes.production.jsonc",
   "productionEnvironment": "production",
   "previewEnvironment": "preview",
   "cron": "*/5 * * * *",

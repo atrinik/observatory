@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 const requiredFiles = [
   "wrangler.jsonc",
   "wrangler.probes.jsonc",
+  "wrangler.probes.production.jsonc",
   ".github/workflows/deploy.yml",
   "deployment/cloudflare-pages.json",
   "deployment/cloudflare-probes.json",
@@ -21,6 +22,10 @@ const probesConfig = await readFile("deployment/cloudflare-probes.json", "utf8")
 const releaseWorkflow = await readFile(".github/workflows/deploy.yml", "utf8");
 const pagesWrangler = await readFile("wrangler.jsonc", "utf8");
 const probesWrangler = await readFile("wrangler.probes.jsonc", "utf8");
+const productionProbesWrangler = await readFile(
+  "wrangler.probes.production.jsonc",
+  "utf8",
+);
 const migration = await readFile("migrations/0001_initial.sql", "utf8");
 const applicabilityMigration = await readFile(
   "migrations/0003_deployment_applicability.sql",
@@ -28,6 +33,7 @@ const applicabilityMigration = await readFile(
 );
 const routes = await readFile("dist/_routes.json", "utf8");
 const pagesContract = JSON.parse(pagesConfig);
+const packageManifest = JSON.parse(await readFile("package.json", "utf8"));
 
 const forbidden = ["CLOUDFLARE_API_TOKEN", "GITHUB_WEBHOOK_SECRET=", "Bearer "];
 for (const [name, content] of Object.entries({
@@ -35,6 +41,7 @@ for (const [name, content] of Object.entries({
   probesConfig,
   pagesWrangler,
   probesWrangler,
+  productionProbesWrangler,
 })) {
   for (const marker of forbidden) {
     if (content.includes(marker)) {
@@ -62,6 +69,57 @@ for (const marker of [
 
 if (!pagesConfig.includes('"noManualDashboardDeployment": true')) {
   throw new Error("Pages contract must reject manual-only deployment");
+}
+if (
+  !probesConfig.includes('"previewConfig": "wrangler.probes.jsonc"') ||
+  !probesConfig.includes('"productionConfig": "wrangler.probes.production.jsonc"')
+) {
+  throw new Error("probe contract must separate preview and production configs");
+}
+for (const marker of [
+  '"name": "atrinik-observatory-probes-preview"',
+  '"database_name": "atrinik-observatory-preview"',
+  '"OBSERVATORY_ENV": "preview"',
+  '"workers_dev": true',
+]) {
+  if (!probesWrangler.includes(marker)) {
+    throw new Error(`preview probe config is missing required contract: ${marker}`);
+  }
+}
+if (
+  probesWrangler.includes('"name": "atrinik-observatory-probes",') ||
+  probesWrangler.includes('"database_name": "atrinik-observatory",') ||
+  probesWrangler.includes('"OBSERVATORY_ENV": "production"') ||
+  probesWrangler.includes('"env": {')
+) {
+  throw new Error("preview probe config must not contain a production environment");
+}
+for (const marker of [
+  '"name": "atrinik-observatory-probes"',
+  '"database_name": "atrinik-observatory"',
+  '"OBSERVATORY_ENV": "production"',
+  '"workers_dev": false',
+]) {
+  if (!productionProbesWrangler.includes(marker)) {
+    throw new Error(`production probe config is missing required contract: ${marker}`);
+  }
+}
+if (
+  productionProbesWrangler.includes('"database_name": "atrinik-observatory-preview"')
+) {
+  throw new Error("production probe config must not use the preview database");
+}
+if (
+  !packageManifest.scripts["deploy:dry-run"].includes("-c wrangler.probes.jsonc") ||
+  !packageManifest.scripts["deploy:dry-run"].includes(
+    "-c wrangler.probes.production.jsonc",
+  ) ||
+  packageManifest.scripts["deploy:dry-run"].includes("--env production") ||
+  !packageManifest.scripts["deploy:probes"].includes(
+    "-c wrangler.probes.production.jsonc",
+  )
+) {
+  throw new Error("probe deployment scripts must select the safe config explicitly");
 }
 if (pagesContract.preview.database === pagesContract.production.database) {
   throw new Error("preview and production Pages databases must be separate");
