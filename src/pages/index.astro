@@ -1,12 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import StatusIndicator from "../components/StatusIndicator.astro";
 import { emptyDashboard } from "../domain/aggregate";
 import { githubRepositoryUrl } from "../domain/components";
-import type {
-  DashboardCoordinate,
-  EvidenceSummary,
-  DisplayStatus,
-} from "../domain/types";
+import type { DashboardCoordinate, EvidenceSummary } from "../domain/types";
 
 const dashboard = emptyDashboard();
 const signalDefinitions = [
@@ -19,24 +16,6 @@ const signalDefinitions = [
   ],
   ["deployment", "Deploy", "The latest GitHub deployment status."],
 ] as const;
-
-function statusLabel(status: DisplayStatus): string {
-  return status === "passed"
-    ? "Passed"
-    : status === "failed"
-      ? "Failed"
-      : status === "cancelled"
-        ? "Cancelled"
-        : status === "running"
-          ? "Running"
-          : status === "stale"
-            ? "Stale"
-            : "Unknown";
-}
-
-function statusClass(status: DisplayStatus): string {
-  return `status-${status}`;
-}
 
 function coordinateSignals(coordinate: DashboardCoordinate) {
   return signalDefinitions.map(([key, label, description]) => ({
@@ -192,13 +171,7 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
                         <span aria-hidden="true">↗</span>
                       </a>
                     </div>
-                    <span
-                      class={`status-badge ${statusClass(coordinate.overall)}`}
-                      data-overall-status
-                    >
-                      <span class="status-icon" aria-hidden="true" />
-                      {statusLabel(coordinate.overall)}
-                    </span>
+                    <StatusIndicator status={coordinate.overall} context="overall" />
                   </header>
                   <div class="signal-grid">
                     {coordinateSignals(coordinate).map(
@@ -206,12 +179,11 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
                         <div class="signal" data-evidence-kind={key}>
                           <div class="signal-topline">
                             <span class="signal-label">{label}</span>
-                            <span
-                              class={`signal-status ${statusClass(evidence.status)}`}
-                              data-evidence-status
-                            >
-                              {statusLabel(evidence.status)}
-                            </span>
+                            <StatusIndicator
+                              status={evidence.status}
+                              size="compact"
+                              context="evidence"
+                            />
                           </div>
                           <p class="signal-description">{description}</p>
                           <div class="signal-meta">
@@ -292,13 +264,7 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
             <div class="service-body">
               <div class="service-title-row">
                 <h3>{service.name}</h3>
-                <span
-                  class={`status-badge ${statusClass(service.status)}`}
-                  data-service-status
-                >
-                  <span class="status-icon" aria-hidden="true" />
-                  {statusLabel(service.status)}
-                </span>
+                <StatusIndicator status={service.status} context="service" />
               </div>
               <a class="service-url" href={service.url}>
                 {service.url}
@@ -351,19 +317,15 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
       : null;
 
     const statusLabel = (status) =>
-      status === "passed"
-        ? "Passed"
-        : status === "failed"
-          ? "Failed"
-          : status === "cancelled"
-            ? "Cancelled"
-            : status === "running"
-              ? "Running"
-              : status === "stale"
-                ? "Stale"
-                : "Unknown";
+      String(status)
+        .replace(/[-_]+/g, " ")
+        .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 
     const statusClass = (status) => `status-${status}`;
+    const statusToken = (status) =>
+      typeof status === "string" && /^[a-z]+(?:[-_][a-z]+)*$/.test(status)
+        ? status
+        : "unknown";
     const formatObserved = (value, ageSeconds) => {
       if (!value) return "No observation";
       if (typeof ageSeconds === "number") {
@@ -385,17 +347,30 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
 
     const setStatus = (element, status) => {
       if (!element) return;
-      element.className = `${element.className
-        .split(" ")
-        .filter((name) => !name.startsWith("status-"))
-        .join(" ")} ${statusClass(status)}`;
-      const text = element.querySelector(".status-icon")?.nextSibling;
-      if (text) text.textContent = statusLabel(status);
-      else element.textContent = statusLabel(status);
+      const normalizedStatus = statusToken(status);
+      const currentStatus = element.dataset.status;
+      if (currentStatus) element.classList.remove(statusClass(currentStatus));
+      element.classList.add(statusClass(normalizedStatus));
+      element.dataset.status = normalizedStatus;
+
+      const label = statusLabel(normalizedStatus);
+      const labelElement = element.querySelector("[data-status-label]");
+      if (labelElement) {
+        labelElement.textContent = label;
+      } else {
+        const newLabel = document.createElement("span");
+        newLabel.className = "status-label";
+        newLabel.dataset.statusLabel = "";
+        newLabel.textContent = label;
+        const icon = element.querySelector(".status-icon");
+        if (icon) icon.after(newLabel);
+        else element.append(newLabel);
+      }
+      element.setAttribute("aria-label", `Status: ${label}`);
     };
 
     const setEvidence = (element, evidence) => {
-      const statusElement = element.querySelector("[data-evidence-status]");
+      const statusElement = element.querySelector('[data-status-role="evidence"]');
       setStatus(statusElement, evidence.status);
       const observedElement = element.querySelector("[data-evidence-observed]");
       if (observedElement) {
@@ -460,7 +435,10 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
       for (const coordinate of dashboard.coordinates) {
         const card = document.querySelector(`[data-coordinate-id="${coordinate.id}"]`);
         if (!card) continue;
-        setStatus(card.querySelector("[data-overall-status]"), coordinate.overall);
+        setStatus(
+          card.querySelector('[data-status-role="overall"]'),
+          coordinate.overall,
+        );
         for (const key of ["build", "release", "package", "deployment"]) {
           const signal = card.querySelector(`[data-evidence-kind="${key}"]`);
           if (signal) setEvidence(signal, coordinate[key]);
@@ -473,7 +451,7 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
       for (const service of dashboard.services) {
         const card = document.querySelector(`[data-service-id="${service.id}"]`);
         if (!card) continue;
-        setStatus(card.querySelector("[data-service-status]"), service.status);
+        setStatus(card.querySelector('[data-status-role="service"]'), service.status);
         const observed = card.querySelector("[data-service-observed]");
         if (observed) {
           const detail = service.statusCode

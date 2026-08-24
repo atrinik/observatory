@@ -1,0 +1,24 @@
+---
+import { statusClass, statusLabel } from "../domain/status";
+import type { DisplayStatus } from "../domain/types";
+
+interface Props {
+  status: DisplayStatus;
+  size?: "overall" | "compact";
+  context: "overall" | "evidence" | "service";
+}
+
+const { status, size = "overall", context } = Astro.props;
+const label = statusLabel(status);
+---
+
+<span
+  class:list={["status-indicator", `status-indicator-${size}`, statusClass(status)]}
+  data-status-indicator
+  data-status-role={context}
+  data-status={status}
+  aria-label={`Status: ${label}`}
+>
+  <span class="status-icon" aria-hidden="true"></span>
+  <span class="status-label" data-status-label>{label}</span>
+</span>

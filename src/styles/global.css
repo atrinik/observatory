@@ -686,10 +686,16 @@ button {
 
 .coordinate-header {
   display: flex;
-  align-items: start;
+  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem 1.25rem 1rem;
+}
+
+.coordinate-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 12rem;
 }
 
 .coordinate-component {
@@ -712,61 +718,84 @@ button {
   color: var(--blue);
 }
 
-.status-badge,
-.signal-status {
+.status-indicator {
+  --status-border: rgba(143, 163, 177, 0.28);
+  --status-background: rgba(143, 163, 177, 0.1);
+  --status-color: var(--muted);
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   gap: 0.35rem;
-  white-space: nowrap;
+  border: 1px solid var(--status-border);
+  background: var(--status-background);
+  color: var(--status-color);
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.06em;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
-.status-badge {
-  padding: 0.3rem 0.55rem;
-  border: 1px solid var(--line);
+.status-indicator-overall {
+  flex: 0 1 auto;
+  min-height: 1.7rem;
+  padding: 0.32rem 0.62rem;
   border-radius: 999px;
+}
+
+.status-indicator-compact {
+  flex: 0 1 auto;
+  min-height: 1.2rem;
+  padding: 0.16rem 0.38rem;
+  border-radius: 0.4rem;
+  gap: 0.28rem;
+  font-size: 0.55rem;
 }
 
 .status-icon {
   display: inline-block;
+  flex: 0 0 auto;
   width: 0.42rem;
   height: 0.42rem;
   border-radius: 50%;
   background: currentColor;
 }
 
+.status-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .status-passed {
-  border-color: rgba(107, 228, 165, 0.32);
-  background: var(--green-bg);
-  color: var(--green);
+  --status-border: rgba(107, 228, 165, 0.32);
+  --status-background: var(--green-bg);
+  --status-color: var(--green);
 }
 
 .status-failed {
-  border-color: rgba(255, 136, 127, 0.34);
-  background: var(--red-bg);
-  color: var(--red);
+  --status-border: rgba(255, 136, 127, 0.34);
+  --status-background: var(--red-bg);
+  --status-color: var(--red);
 }
 
 .status-cancelled,
 .status-stale {
-  border-color: rgba(240, 197, 108, 0.33);
-  background: var(--amber-bg);
-  color: var(--amber);
+  --status-border: rgba(240, 197, 108, 0.33);
+  --status-background: var(--amber-bg);
+  --status-color: var(--amber);
 }
 
 .status-running {
-  border-color: rgba(181, 155, 255, 0.34);
-  background: rgba(181, 155, 255, 0.12);
-  color: var(--violet);
+  --status-border: rgba(181, 155, 255, 0.34);
+  --status-background: rgba(181, 155, 255, 0.12);
+  --status-color: var(--violet);
 }
 
 .status-unknown {
-  border-color: rgba(143, 163, 177, 0.28);
-  background: rgba(143, 163, 177, 0.1);
-  color: var(--muted);
+  --status-border: rgba(143, 163, 177, 0.28);
+  --status-background: rgba(143, 163, 177, 0.1);
+  --status-color: var(--muted);
 }
 
 .signal-grid {
@@ -792,21 +821,17 @@ button {
 
 .signal-topline {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
 .signal-label {
+  min-width: 0;
   color: var(--text-soft);
   font-size: 0.72rem;
   font-weight: 800;
-}
-
-.signal-status {
-  border: 0;
-  background: transparent;
-  font-size: 0.55rem;
 }
 
 .signal-description {
@@ -947,12 +972,15 @@ button {
 
 .service-title-row {
   display: flex;
-  align-items: start;
+  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem;
 }
 
 .service-title-row h3 {
+  min-width: 0;
+  flex: 1 1 10rem;
   font-size: 1.35rem;
 }
 
