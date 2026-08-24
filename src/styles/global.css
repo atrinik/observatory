@@ -3012,7 +3012,6 @@ body {
 .service-card-heading .service-icon-server span {
   display: none;
 }
-
 /* Keep rail cards aligned and dense workspace text in the website's readable UI stack. */
 .dashboard-rail > .services-shell,
 .dashboard-rail > .detail-panel,
