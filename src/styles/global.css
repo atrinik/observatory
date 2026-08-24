@@ -3056,3 +3056,175 @@ body {
 .detail-signal-heading > .status-unknown .status-icon::after {
   font-family: var(--sans);
 }
+
+/* Final visual polish: use the website's UI stack and center symbolic marks. */
+.summary-icon-healthy::before {
+  top: 50%;
+  left: 50%;
+  width: 28%;
+  height: 45%;
+  transform: translate(-50%, -58%) rotate(45deg);
+}
+
+.summary-icon-attention::before {
+  top: 13%;
+  right: 14%;
+  bottom: 15%;
+  left: 14%;
+  width: auto;
+  height: auto;
+  background: var(--mockup-panel-raised);
+}
+
+.summary-icon-attention::after {
+  top: 50%;
+  left: 50%;
+  width: auto;
+  height: auto;
+  color: var(--amber);
+  background: transparent;
+  box-shadow: none;
+  content: "!";
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translate(-50%, -55%);
+}
+
+.summary-icon-unknown::before {
+  top: 50%;
+  left: 50%;
+  width: auto;
+  height: auto;
+  font-family: var(--sans);
+  font-size: 1.2rem;
+  line-height: 1;
+  transform: translate(-50%, -54%);
+}
+
+.matrix-signal .status-icon,
+.surface-row .status-icon,
+.service-card-heading > .status-indicator .status-icon,
+.service-title-row > .status-indicator .status-icon,
+.detail-signal-heading > .status-indicator .status-icon {
+  transform: none;
+}
+
+.matrix-signal .status-icon::after,
+.surface-row .status-icon::after,
+.service-card-heading > .status-indicator .status-icon::after,
+.service-title-row > .status-indicator .status-icon::after,
+.detail-signal-heading > .status-indicator .status-icon::after {
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border: 0;
+  content: "";
+  font-family: var(--sans);
+  line-height: 1;
+  transform: translate(-50%, -52%);
+}
+
+.matrix-signal .status-passed .status-icon::after,
+.surface-row .status-passed .status-icon::after,
+.service-card-heading > .status-passed .status-icon::after,
+.service-title-row > .status-passed .status-icon::after,
+.detail-signal-heading > .status-passed .status-icon::after {
+  width: 28%;
+  height: 45%;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translate(-50%, -58%) rotate(45deg);
+}
+
+.matrix-signal .status-unknown .status-icon::after,
+.surface-row .status-unknown .status-icon::after,
+.service-card-heading > .status-unknown .status-icon::after,
+.service-title-row > .status-unknown .status-icon::after,
+.detail-signal-heading > .status-unknown .status-icon::after {
+  width: auto;
+  height: auto;
+  content: "?";
+  font-size: 0.82rem;
+  transform: translate(-50%, -54%);
+}
+
+.matrix-signal .status-attention .status-icon,
+.matrix-signal .status-stale .status-icon,
+.surface-row .status-attention .status-icon,
+.surface-row .status-stale .status-icon,
+.service-card-heading > .status-attention .status-icon,
+.service-card-heading > .status-stale .status-icon,
+.service-title-row > .status-attention .status-icon,
+.service-title-row > .status-stale .status-icon,
+.detail-signal-heading > .status-attention .status-icon,
+.detail-signal-heading > .status-stale .status-icon {
+  transform: none;
+}
+
+.matrix-signal .status-attention .status-icon::after,
+.matrix-signal .status-stale .status-icon::after,
+.surface-row .status-attention .status-icon::after,
+.surface-row .status-stale .status-icon::after,
+.service-card-heading > .status-attention .status-icon::after,
+.service-card-heading > .status-stale .status-icon::after,
+.service-title-row > .status-attention .status-icon::after,
+.service-title-row > .status-stale .status-icon::after,
+.detail-signal-heading > .status-attention .status-icon::after,
+.detail-signal-heading > .status-stale .status-icon::after {
+  width: auto;
+  height: auto;
+  content: "!";
+  font-size: 0.78rem;
+  font-weight: 700;
+  transform: translate(-50%, -55%);
+}
+
+.matrix-signal .status-not-tracked .status-icon::after,
+.surface-row .status-not-tracked .status-icon::after,
+.service-card-heading > .status-not-tracked .status-icon::after,
+.service-title-row > .status-not-tracked .status-icon::after,
+.detail-signal-heading > .status-not-tracked .status-icon::after {
+  width: 52%;
+  height: 0;
+  border-top: 1.5px solid currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.matrix-signal .status-failed .status-icon::after,
+.matrix-signal .status-cancelled .status-icon::after,
+.surface-row .status-failed .status-icon::after,
+.surface-row .status-cancelled .status-icon::after,
+.service-card-heading > .status-failed .status-icon::after,
+.service-card-heading > .status-cancelled .status-icon::after,
+.service-title-row > .status-failed .status-icon::after,
+.service-title-row > .status-cancelled .status-icon::after,
+.detail-signal-heading > .status-failed .status-icon::after,
+.detail-signal-heading > .status-cancelled .status-icon::after {
+  width: auto;
+  height: auto;
+  content: "×";
+  font-size: 0.84rem;
+  transform: translate(-50%, -53%);
+}
+
+.matrix-header,
+.legend-marker,
+.status-label,
+.matrix-observed,
+.detail-evidence-links,
+.format-metric {
+  font-family: var(--sans);
+}
+
+@media (max-width: 520px) {
+  .summary-icon-attention::after {
+    font-size: 0.85rem;
+  }
+
+  .summary-icon-unknown::before {
+    font-size: 1rem;
+  }
+}

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("../pages/index.astro", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../styles/global.css", import.meta.url), "utf8");
 
 const tabMarkup = (stack: "default" | "classic") => {
   const match = source.match(
@@ -72,5 +73,14 @@ describe("initial stack view markup", () => {
       'setApiState("API unavailable · showing the safe unknown state", "error");',
     );
     expect(apiFlow).not.toContain("data-stack-tab");
+  });
+
+  it("keeps status symbols centered and dense UI text in the site sans stack", () => {
+    expect(styles).toContain("transform: translate(-50%, -58%) rotate(45deg);");
+    expect(styles).toContain("transform: translate(-50%, -54%);");
+    expect(styles).toContain("border-top: 1.5px solid currentColor;");
+    expect(styles).toContain(".matrix-header,");
+    expect(styles).toContain(".status-label,");
+    expect(styles).toContain("font-family: var(--sans);");
   });
 });
