@@ -1,49 +1,161 @@
 import type { ComponentCoordinate, ServiceProbe } from "./types";
 
+type CoordinateDefinition = Pick<
+  ComponentCoordinate,
+  "component" | "repository" | "generation" | "deploymentApplicable"
+>;
+
 const defaultDefinitions = [
-  ["client", "client", "replacement"],
-  ["server", "server", "replacement"],
-  ["protocol", "protocol", "replacement"],
-  ["editor", "editor", "replacement"],
-  ["renderer", "renderer", "replacement"],
-  ["content-toolkit", "content-toolkit", "replacement"],
-  ["website", "website", "replacement"],
-  ["content", "content", "shared"],
-  ["sound", "sound", "shared"],
-  ["resources", "resources", "shared"],
-  ["metaserver-worker", "metaserver-worker", "shared"],
-  ["devcontainer", "devcontainer", "shared"],
-  ["github-settings", "github-settings", "shared"],
-  ["observatory", "observatory", "replacement"],
-] as const;
+  {
+    component: "client",
+    repository: "client",
+    generation: "replacement",
+    deploymentApplicable: false,
+  },
+  {
+    component: "server",
+    repository: "server",
+    generation: "replacement",
+    deploymentApplicable: false,
+  },
+  {
+    component: "protocol",
+    repository: "protocol",
+    generation: "replacement",
+    deploymentApplicable: false,
+  },
+  {
+    component: "editor",
+    repository: "editor",
+    generation: "replacement",
+    deploymentApplicable: false,
+  },
+  {
+    component: "renderer",
+    repository: "renderer",
+    generation: "replacement",
+    deploymentApplicable: false,
+  },
+  {
+    component: "content-toolkit",
+    repository: "content-toolkit",
+    generation: "replacement",
+    deploymentApplicable: false,
+  },
+  {
+    component: "website",
+    repository: "website",
+    generation: "replacement",
+    deploymentApplicable: true,
+  },
+  {
+    component: "content",
+    repository: "content",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "sound",
+    repository: "sound",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "resources",
+    repository: "resources",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "metaserver-worker",
+    repository: "metaserver-worker",
+    generation: "shared",
+    deploymentApplicable: true,
+  },
+  {
+    component: "devcontainer",
+    repository: "devcontainer",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "github-settings",
+    repository: "github-settings",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "observatory",
+    repository: "observatory",
+    generation: "replacement",
+    deploymentApplicable: true,
+  },
+] satisfies readonly CoordinateDefinition[];
 
 const defaultCoordinates: ComponentCoordinate[] = defaultDefinitions.map(
-  ([component, repository, generation]) => ({
+  ({ component, repository, generation, deploymentApplicable }) => ({
     id: `default:${component}`,
     repository: `atrinik/${repository}`,
     component,
     stack: "default",
     generation,
+    deploymentApplicable,
   }),
 );
 
 const classicDefinitions = [
-  ["classic", "classic", "classic"],
-  ["playtester", "playtester", "classic"],
-  ["tools", "tools", "classic"],
-  ["content", "content", "shared"],
-  ["sound", "sound", "shared"],
-  ["resources", "resources", "shared"],
-  ["metaserver-worker", "metaserver-worker", "shared"],
-] as const;
+  {
+    component: "classic",
+    repository: "classic",
+    generation: "classic",
+    deploymentApplicable: true,
+  },
+  {
+    component: "playtester",
+    repository: "playtester",
+    generation: "classic",
+    deploymentApplicable: false,
+  },
+  {
+    component: "tools",
+    repository: "tools",
+    generation: "classic",
+    deploymentApplicable: false,
+  },
+  {
+    component: "content",
+    repository: "content",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "sound",
+    repository: "sound",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "resources",
+    repository: "resources",
+    generation: "shared",
+    deploymentApplicable: false,
+  },
+  {
+    component: "metaserver-worker",
+    repository: "metaserver-worker",
+    generation: "shared",
+    deploymentApplicable: true,
+  },
+] satisfies readonly CoordinateDefinition[];
 
 const classicCoordinates: ComponentCoordinate[] = classicDefinitions.map(
-  ([component, repository, generation]) => ({
+  ({ component, repository, generation, deploymentApplicable }) => ({
     id: `classic:${component}`,
     repository: `atrinik/${repository}`,
     component,
     stack: "classic",
     generation,
+    deploymentApplicable,
   }),
 );
 

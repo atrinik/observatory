@@ -31,7 +31,9 @@ function statusLabel(status: DisplayStatus): string {
           ? "Running"
           : status === "stale"
             ? "Stale"
-            : "Unknown";
+            : status === "not-tracked"
+              ? "Not tracked"
+              : "Unknown";
 }
 
 function statusClass(status: DisplayStatus): string {
@@ -42,7 +44,10 @@ function coordinateSignals(coordinate: DashboardCoordinate) {
   return signalDefinitions.map(([key, label, description]) => ({
     key,
     label,
-    description,
+    description:
+      key === "deployment" && !coordinate.deploymentApplicable
+        ? "No GitHub deployment is configured for this coordinate."
+        : description,
     evidence: coordinate[key],
   }));
 }
@@ -213,12 +218,22 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
                               {statusLabel(evidence.status)}
                             </span>
                           </div>
-                          <p class="signal-description">{description}</p>
+                          <p class="signal-description" data-evidence-description>
+                            {description}
+                          </p>
                           <div class="signal-meta">
                             <span data-evidence-observed>
-                              {evidence.observedAt ? "Observed" : "No observation"}
+                              {evidence.status === "not-tracked"
+                                ? "Not tracked"
+                                : evidence.observedAt
+                                  ? "Observed"
+                                  : "No observation"}
                             </span>
-                            {evidenceHref(evidence) ? (
+                            {evidence.status === "not-tracked" ? (
+                              <span class="muted-link" data-evidence-link>
+                                Not tracked
+                              </span>
+                            ) : evidenceHref(evidence) ? (
                               <a
                                 data-evidence-link
                                 href={evidenceHref(evidence) ?? undefined}
@@ -361,10 +376,13 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
               ? "Running"
               : status === "stale"
                 ? "Stale"
-                : "Unknown";
+                : status === "not-tracked"
+                  ? "Not tracked"
+                  : "Unknown";
 
     const statusClass = (status) => `status-${status}`;
-    const formatObserved = (value, ageSeconds) => {
+    const formatObserved = (value, ageSeconds, status) => {
+      if (status === "not-tracked") return "Not tracked";
       if (!value) return "No observation";
       if (typeof ageSeconds === "number") {
         if (ageSeconds < 60) return "Observed just now";
@@ -394,14 +412,21 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
       else element.textContent = statusLabel(status);
     };
 
-    const setEvidence = (element, evidence) => {
+    const setEvidence = (element, evidence, deploymentApplicable) => {
       const statusElement = element.querySelector("[data-evidence-status]");
       setStatus(statusElement, evidence.status);
+      const description = element.querySelector("[data-evidence-description]");
+      if (description && typeof deploymentApplicable === "boolean") {
+        description.textContent = deploymentApplicable
+          ? "The latest GitHub deployment status."
+          : "No GitHub deployment is configured for this coordinate.";
+      }
       const observedElement = element.querySelector("[data-evidence-observed]");
       if (observedElement) {
         observedElement.textContent = formatObserved(
           evidence.observedAt,
           evidence.ageSeconds,
+          evidence.status,
         );
       }
       const link = element.querySelector("[data-evidence-link]");
@@ -409,7 +434,11 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
         evidence.latest?.packageUrl ??
         evidence.latest?.artifactUrl ??
         evidence.latest?.sourceUrl;
-      if (link && href && /^https:\/\//.test(href)) {
+      if (link && evidence.status === "not-tracked") {
+        link.textContent = "Not tracked";
+        link.removeAttribute("href");
+        link.classList.add("muted-link");
+      } else if (link && href && /^https:\/\//.test(href)) {
         link.textContent = "View evidence ↗";
         link.setAttribute("href", href);
         link.classList.remove("muted-link");
@@ -463,7 +492,12 @@ const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
         setStatus(card.querySelector("[data-overall-status]"), coordinate.overall);
         for (const key of ["build", "release", "package", "deployment"]) {
           const signal = card.querySelector(`[data-evidence-kind="${key}"]`);
-          if (signal) setEvidence(signal, coordinate[key]);
+          if (signal)
+            setEvidence(
+              signal,
+              coordinate[key],
+              key === "deployment" ? coordinate.deploymentApplicable : undefined,
+            );
         }
         const ref = card.querySelector("[data-coordinate-ref]");
         if (ref)

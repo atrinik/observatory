@@ -6,7 +6,8 @@ the signals separate and links every detail back to the GitHub run, check,
 release, asset, or deployment that produced it.
 
 The first version is intentionally conservative: missing data is `unknown`, old
-data is `stale`, and a successful build never implies that a release or package
+data is `stale`, coordinates without a configured deployment surface are
+`not-tracked`, and a successful build never implies that a release or package
 exists. Observatory stores compact normalized summaries and delivery
 identifiers; GitHub remains the authority for logs and large artifacts.
 
@@ -21,9 +22,11 @@ identifiers; GitHub remains the authority for logs and large artifacts.
 - `src/probe-worker.ts` is a small scheduled Worker. Every five minutes it
   probes the configured public services without reading response bodies.
 
-The component and stack map is seeded from the wrapper's `components.json` and
+The component and stack map follows the wrapper's `components.json` and
 deliberately keeps shared repositories visible in both the replacement and
-Classic views where they participate in both stacks.
+Classic views where they participate in both stacks. Deployment applicability is
+an explicit Observatory property of each coordinate, because it cannot be
+reliably inferred from the presence or absence of webhook events.
 
 ## Local development
 

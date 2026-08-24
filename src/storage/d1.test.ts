@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { recordGitHubDelivery } from "./d1";
+import { readDashboard, recordGitHubDelivery } from "./d1";
 import type { NormalizedObservation } from "../domain/types";
 
 const coordinate = {
@@ -8,6 +8,7 @@ const coordinate = {
   component: "observatory",
   stack: "default" as const,
   generation: "replacement" as const,
+  deployment_applicable: 1,
 };
 
 const observation: NormalizedObservation = {
@@ -52,6 +53,15 @@ class FakeStatement {
   async all<T>() {
     if (this.sql.includes("FROM component_coordinates")) {
       return { results: [coordinate] as T[] };
+    }
+    if (this.sql.includes("FROM coordinate_observations")) {
+      return { results: [] as T[] };
+    }
+    if (this.sql.includes("FROM service_probes")) {
+      return { results: [] as T[] };
+    }
+    if (this.sql.includes("FROM service_observations")) {
+      return { results: [] as T[] };
     }
     throw new Error(`unexpected all query: ${this.sql}`);
   }
@@ -134,6 +144,25 @@ describe("D1 GitHub delivery persistence", () => {
       conflict: true,
       inserted: 0,
       mapped: 0,
+    });
+  });
+});
+
+describe("D1 dashboard reads", () => {
+  it("maps the deployment applicability column into the public coordinate", async () => {
+    const database = new FakeDatabase() as unknown as D1Database;
+
+    await expect(
+      readDashboard(database, new Date("2026-08-23T12:00:00.000Z")),
+    ).resolves.toMatchObject({
+      coordinates: [
+        {
+          id: "default:observatory",
+          deploymentApplicable: true,
+          deployment: { status: "unknown" },
+          overall: "unknown",
+        },
+      ],
     });
   });
 });

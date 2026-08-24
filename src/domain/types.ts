@@ -19,7 +19,7 @@ export const OBSERVATION_STATUSES = [
   "unknown",
 ] as const;
 export type ObservationStatus = (typeof OBSERVATION_STATUSES)[number];
-export type DisplayStatus = ObservationStatus | "stale";
+export type DisplayStatus = ObservationStatus | "stale" | "not-tracked";
 
 export type Generation = "replacement" | "classic" | "shared";
 
@@ -29,6 +29,7 @@ export interface ComponentCoordinate {
   component: string;
   stack: Stack;
   generation: Generation;
+  deploymentApplicable: boolean;
 }
 
 export interface EvidenceRecord {

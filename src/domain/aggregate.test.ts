@@ -8,6 +8,7 @@ const coordinate: ComponentCoordinate = {
   component: "observatory",
   stack: "default",
   generation: "replacement",
+  deploymentApplicable: true,
 };
 
 const record = (
@@ -112,5 +113,114 @@ describe("aggregateDashboard", () => {
     expect(dashboard.coordinates[0]?.release.status).toBe("unknown");
     expect(dashboard.coordinates[0]?.package.status).toBe("unknown");
     expect(dashboard.coordinates[0]?.overall).toBe("unknown");
+  });
+
+  it("does not penalize a coordinate without a deployment surface", () => {
+    const nonDeployableCoordinate: ComponentCoordinate = {
+      ...coordinate,
+      id: "default:resources",
+      repository: "atrinik/resources",
+      component: "resources",
+      deploymentApplicable: false,
+    };
+    const dashboard = aggregateDashboard(
+      [nonDeployableCoordinate],
+      [
+        record({
+          id: "resources-build",
+          coordinateId: nonDeployableCoordinate.id,
+          kind: "build",
+        }),
+        record({
+          id: "resources-release",
+          coordinateId: nonDeployableCoordinate.id,
+          kind: "release",
+        }),
+        record({
+          id: "resources-package",
+          coordinateId: nonDeployableCoordinate.id,
+          kind: "package",
+        }),
+      ],
+      [],
+      [],
+      new Date("2026-08-23T12:00:00.000Z"),
+      21600,
+    );
+
+    expect(dashboard.coordinates[0]?.deployment.status).toBe("not-tracked");
+    expect(dashboard.coordinates[0]?.overall).toBe("passed");
+    expect(dashboard.summary.healthy).toBe(1);
+    expect(dashboard.summary.unknown).toBe(0);
+  });
+
+  it("keeps an applicable coordinate unknown when deployment evidence is missing", () => {
+    const dashboard = aggregateDashboard(
+      [coordinate],
+      [
+        record({ id: "build-pass", kind: "build" }),
+        record({ id: "release-pass", kind: "release" }),
+        record({ id: "package-pass", kind: "package" }),
+      ],
+      [],
+      [],
+      new Date("2026-08-23T12:00:00.000Z"),
+      21600,
+    );
+
+    expect(dashboard.coordinates[0]?.deployment.status).toBe("unknown");
+    expect(dashboard.coordinates[0]?.overall).toBe("unknown");
+    expect(dashboard.summary.healthy).toBe(0);
+    expect(dashboard.summary.unknown).toBe(1);
+  });
+
+  it("applies the same non-tracked semantics to both shared stack views", () => {
+    const sharedCoordinates: ComponentCoordinate[] = [
+      {
+        ...coordinate,
+        id: "default:resources",
+        repository: "atrinik/resources",
+        component: "resources",
+        deploymentApplicable: false,
+      },
+      {
+        ...coordinate,
+        id: "classic:resources",
+        repository: "atrinik/resources",
+        component: "resources",
+        stack: "classic",
+        generation: "shared",
+        deploymentApplicable: false,
+      },
+    ];
+    const observations = sharedCoordinates.flatMap((sharedCoordinate) =>
+      ["build", "release", "package"].map((kind) =>
+        record({
+          id: `${sharedCoordinate.id}:${kind}`,
+          coordinateId: sharedCoordinate.id,
+          kind: kind as "build" | "release" | "package",
+        }),
+      ),
+    );
+    const dashboard = aggregateDashboard(
+      sharedCoordinates,
+      observations,
+      [],
+      [],
+      new Date("2026-08-23T12:00:00.000Z"),
+      21600,
+    );
+
+    expect(
+      dashboard.coordinates.map((sharedCoordinate) => [
+        sharedCoordinate.id,
+        sharedCoordinate.deployment.status,
+        sharedCoordinate.overall,
+      ]),
+    ).toEqual([
+      ["default:resources", "not-tracked", "passed"],
+      ["classic:resources", "not-tracked", "passed"],
+    ]);
+    expect(dashboard.summary).toMatchObject({ total: 2, healthy: 2, unknown: 0 });
   });
 });

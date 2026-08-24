@@ -16,6 +16,13 @@ The initial migration seeds the current default and Classic allowlist. Adding a
 repository or changing a stack is an explicit migration review, not a value
 inferred from an arbitrary webhook.
 
+Each coordinate also declares `deploymentApplicable`. When it is `true`, a
+missing deployment observation remains `unknown` and contributes to the overall
+status. When it is `false`, the deployment signal is rendered as `not-tracked`
+and is excluded from the overall status. The applicability values are seeded by
+the forward D1 migration, so shared coordinates such as `default:resources` and
+`classic:resources` have the same explicit behavior.
+
 ## GitHub deliveries
 
 `github_deliveries` records:
@@ -40,6 +47,11 @@ kind:
 - `release`: GitHub release lifecycle evidence;
 - `package`: release assets and archive URLs;
 - `deployment`: GitHub deployment status.
+
+Deployment observations are only evaluated for coordinates whose
+`deploymentApplicable` value is `true`. A non-applicable deployment signal is
+not synthesized as a successful observation and is not allowed to turn a
+coordinate green by itself.
 
 Every row retains the event timestamp, receipt timestamp, ref, commit SHA,
 human-readable title, and direct source links. The read path orders by event

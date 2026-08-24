@@ -34,6 +34,17 @@
     "status": {
       "enum": ["passed", "failed", "cancelled", "running", "unknown", "stale"]
     },
+    "evidenceStatus": {
+      "enum": [
+        "passed",
+        "failed",
+        "cancelled",
+        "running",
+        "unknown",
+        "stale",
+        "not-tracked"
+      ]
+    },
     "coordinate": {
       "type": "object",
       "required": [
@@ -42,6 +53,7 @@
         "component",
         "stack",
         "generation",
+        "deploymentApplicable",
         "overall",
         "build",
         "release",
@@ -54,6 +66,7 @@
         "component": { "type": "string" },
         "stack": { "enum": ["default", "classic"] },
         "generation": { "enum": ["replacement", "classic", "shared"] },
+        "deploymentApplicable": { "type": "boolean" },
         "overall": { "$ref": "#/$defs/status" },
         "build": { "$ref": "#/$defs/evidence" },
         "release": { "$ref": "#/$defs/evidence" },
@@ -75,7 +88,7 @@
         "mostRecentFailure"
       ],
       "properties": {
-        "status": { "$ref": "#/$defs/status" },
+        "status": { "$ref": "#/$defs/evidenceStatus" },
         "lastObservedStatus": { "type": ["string", "null"] },
         "observedAt": { "type": ["string", "null"] },
         "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },

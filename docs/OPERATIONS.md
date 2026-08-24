@@ -12,10 +12,14 @@ deployment. Interpret statuses as follows:
 - `running`: the latest evidence is queued or active;
 - `stale`: the latest evidence is older than its threshold; and
 - `unknown`: there is no usable observation or the source did not expose a known
-  conclusion.
+  conclusion; and
+- `not-tracked`: this coordinate has no configured deployment surface, so the
+  deployment signal is informationally inapplicable.
 
-Only the first status is healthy. A coordinate can have a passed build while
-its release or package remains unknown.
+Only `passed` is healthy. A coordinate can have a passed build while its release
+or package remains unknown. `not-tracked` applies only to the deployment signal;
+it is excluded from the coordinate overall status rather than being treated as
+a pass or an unknown failure.
 
 ## Reconcile missed events
 
