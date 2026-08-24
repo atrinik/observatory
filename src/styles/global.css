@@ -3012,3 +3012,48 @@ body {
 .service-card-heading .service-icon-server span {
   display: none;
 }
+
+/* Keep rail cards aligned and dense workspace text in the website's readable UI stack. */
+.dashboard-rail > .services-shell,
+.dashboard-rail > .detail-panel,
+.dashboard-rail > .about-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  justify-self: stretch;
+}
+
+.site-header nav a,
+.site-header .header-link,
+.compact-hero .sync-state,
+.summary-label,
+.summary-unit,
+.stack-tab,
+.filter-search input,
+.filter-button,
+.signal-legend,
+.matrix-signal .status-indicator,
+.surface-row .status-indicator,
+.service-card-heading > .status-indicator,
+.service-title-row > .status-indicator,
+.detail-heading > .status-indicator,
+.detail-signal-heading > .status-indicator,
+.services-shell .section-note,
+.service-url,
+.service-observation,
+.surface-summary,
+.surface-row > p,
+.surface-details,
+.about-copy,
+.matrix-signal::before {
+  font-family: var(--sans);
+}
+
+.summary-icon-unknown::before,
+.matrix-signal .status-unknown .status-icon::after,
+.surface-row .status-unknown .status-icon::after,
+.service-card-heading > .status-unknown .status-icon::after,
+.service-title-row > .status-unknown .status-icon::after,
+.detail-signal-heading > .status-unknown .status-icon::after {
+  font-family: var(--sans);
+}
