@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aggregateDashboard } from "./aggregate";
-import type { ComponentCoordinate } from "./types";
+import { SERVICE_PROBES } from "./components";
+import type { ComponentCoordinate, ServiceObservation } from "./types";
 
 const coordinate: ComponentCoordinate = {
   id: "default:observatory",
@@ -222,5 +223,106 @@ describe("aggregateDashboard", () => {
       ["classic:resources", "not-tracked", "passed"],
     ]);
     expect(dashboard.summary).toMatchObject({ total: 2, healthy: 2, unknown: 0 });
+  });
+});
+
+describe("metaserver surfaces", () => {
+  const now = new Date("2026-08-23T12:00:00.000Z");
+  const listingProbes = SERVICE_PROBES.filter((probe) => probe.surface === "listings");
+
+  const listingObservation = (
+    probeId: string,
+    overrides: Partial<ServiceObservation> = {},
+  ): ServiceObservation => ({
+    id: `${probeId}:observation`,
+    probeId,
+    status: "passed",
+    observedAt: "2026-08-23T11:59:00.000Z",
+    statusCode: 200,
+    responseMs: 40,
+    error: null,
+    format: listingProbes.find((probe) => probe.id === probeId)?.format ?? null,
+    generation: "directory-42",
+    entryCount: 3,
+    parityKey: "generation:directory-42;entries:3",
+    ...overrides,
+  });
+
+  const dashboardFor = (observations: ServiceObservation[]) =>
+    aggregateDashboard([], [], SERVICE_PROBES, observations, now, 21600);
+
+  it("keeps healthy listings separate from unknown rendezvous", () => {
+    const service = dashboardFor(
+      listingProbes.map((probe) => listingObservation(probe.id)),
+    ).services.find((candidate) => candidate.id === "metaserver");
+
+    expect(service).toMatchObject({
+      status: "unknown",
+      surfaces: {
+        listings: {
+          status: "passed",
+          availableFormats: 4,
+          crossFormatSkew: false,
+        },
+        rendezvous: {
+          status: "unknown",
+          safeObservationAvailable: false,
+          observationSource: null,
+        },
+      },
+    });
+  });
+
+  it("does not hide failed, stale, or partial listing formats", () => {
+    const failed = dashboardFor([
+      ...listingProbes
+        .filter((probe) => probe.format !== "json")
+        .map((probe) => listingObservation(probe.id)),
+      listingObservation("metaserver:listings:json", {
+        status: "failed",
+        statusCode: 503,
+        error: "503 unavailable",
+      }),
+    ]).services.find((candidate) => candidate.id === "metaserver");
+    expect(failed).toMatchObject({ surfaces: { listings: { status: "failed" } } });
+
+    const stale = dashboardFor([
+      ...listingProbes
+        .filter((probe) => probe.format !== "xml")
+        .map((probe) => listingObservation(probe.id)),
+      listingObservation("metaserver:listings:xml", {
+        observedAt: "2026-08-23T10:00:00.000Z",
+      }),
+    ]).services.find((candidate) => candidate.id === "metaserver");
+    expect(stale).toMatchObject({ surfaces: { listings: { status: "stale" } } });
+
+    const partial = dashboardFor(
+      listingProbes
+        .filter((probe) => probe.format !== "xml")
+        .map((probe) => listingObservation(probe.id)),
+    ).services.find((candidate) => candidate.id === "metaserver");
+    expect(partial).toMatchObject({ surfaces: { listings: { status: "attention" } } });
+  });
+
+  it("surfaces cross-format generation skew instead of false-passing", () => {
+    const dashboard = dashboardFor(
+      listingProbes.map((probe) =>
+        listingObservation(probe.id, {
+          generation: probe.format === "xml" ? "directory-43" : "directory-42",
+          parityKey:
+            probe.format === "xml"
+              ? "generation:directory-43;entries:3"
+              : "generation:directory-42;entries:3",
+        }),
+      ),
+    );
+    const service = dashboard.services.find(
+      (candidate) => candidate.id === "metaserver",
+    );
+
+    expect(service).toMatchObject({
+      status: "attention",
+      surfaces: { listings: { status: "attention", crossFormatSkew: true } },
+    });
   });
 });

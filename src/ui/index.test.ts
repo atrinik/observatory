@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("../pages/index.astro", import.meta.url), "utf8");
+const layout = readFileSync(new URL("../layouts/Base.astro", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../styles/global.css", import.meta.url), "utf8");
 
 const tabMarkup = (stack: "default" | "classic") => {
   const match = source.match(
@@ -26,6 +28,33 @@ describe("initial stack view markup", () => {
     expect(source).toContain("hidden={stack !== initialStack}");
   });
 
+  it("renders a compact evidence matrix and independent metaserver surfaces", () => {
+    expect(source).toContain('class="matrix"');
+    expect(source).toContain("Build");
+    expect(source).toContain("Release");
+    expect(source).toContain("Package");
+    expect(source).toContain("Deploy");
+    expect(source).toContain('data-surface-id="listings"');
+    expect(source).toContain('data-surface-id="rendezvous"');
+    expect(source).toContain("data-coordinate-filter");
+    expect(source).toContain("data-detail-content");
+  });
+
+  it("keeps the mockup's two-column evidence workspace hierarchy", () => {
+    expect(source).toContain("Delivery evidence at a glance");
+    expect(source).toContain('class="summary-icon summary-icon-tracked"');
+    expect(source).toContain('class="signal-legend"');
+    expect(source).toContain('class="dashboard-layout"');
+    expect(source).toContain('class="matrix-panel"');
+    expect(source).toContain('class="dashboard-rail"');
+    expect(source).toContain("href={githubRepositoryUrl(coordinate.repository)}");
+    expect(source).toContain("Public services");
+    expect(source).toContain("How to read this");
+    expect(source.indexOf('id="services"')).toBeLessThan(
+      source.indexOf('id="coordinate-detail"'),
+    );
+  });
+
   it("keeps tab ARIA state and panel visibility synchronized on interaction", () => {
     expect(source).toContain(
       'candidate.setAttribute("aria-selected", String(active));',
@@ -45,5 +74,28 @@ describe("initial stack view markup", () => {
       'setApiState("API unavailable · showing the safe unknown state", "error");',
     );
     expect(apiFlow).not.toContain("data-stack-tab");
+  });
+
+  it("keeps status symbols centered and dense UI text in the site sans stack", () => {
+    expect(styles).toContain("transform: translate(-50%, -58%) rotate(45deg);");
+    expect(styles).toContain("transform: translate(-50%, -54%);");
+    expect(styles).toContain("border-top: 1.5px solid currentColor;");
+    expect(styles).toContain(".matrix-header,");
+    expect(styles).toContain(".status-label,");
+    expect(styles).toContain("font-family: var(--sans);");
+    expect(styles).toContain(".site-header .brand-mark::before");
+    expect(styles).toContain("left: 50%;\n  transform: translate(-50%, -50%);");
+    expect(styles).toContain("inset: 0;\n  display: grid;\n  place-items: center;");
+    expect(source).toContain('class="service-card-main"');
+    expect(styles).toContain(".service-card-main");
+    expect(styles).toContain(".service-grid .status-unknown .status-icon::after");
+    expect(styles).toContain(".status-not-tracked .status-icon::after");
+    expect(styles).toContain("background: linear-gradient(currentColor, currentColor)");
+    expect(styles).toContain('.site-header nav a[aria-current="page"]');
+    expect(styles).toContain(".stack-tab,\n.filter-button");
+    expect(layout).toContain('href="/favicon.svg"');
+    expect(layout).toContain('href="/mask-icon.svg"');
+    expect(layout).toContain('aria-current="page"');
+    expect(source).toContain("Atrinik / Observatory");
   });
 });

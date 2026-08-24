@@ -3,18 +3,18 @@ import Base from "../layouts/Base.astro";
 import StatusIndicator from "../components/StatusIndicator.astro";
 import { emptyDashboard } from "../domain/aggregate";
 import { githubRepositoryUrl } from "../domain/components";
-import type { DashboardCoordinate, EvidenceSummary } from "../domain/types";
+import type {
+  DashboardCoordinate,
+  DashboardService,
+  MetaserverServiceSummary,
+} from "../domain/types";
 
 const dashboard = emptyDashboard();
 const signalDefinitions = [
-  ["build", "Build", "The latest workflow or check evidence."],
-  ["release", "Release", "A GitHub release event, separate from builds."],
-  [
-    "package",
-    "Package",
-    "A release asset or package URL, never inferred from a build.",
-  ],
-  ["deployment", "Deploy", "The latest GitHub deployment status."],
+  ["build", "Build", "Workflow or check evidence."],
+  ["release", "Release", "GitHub release lifecycle evidence."],
+  ["package", "Package", "Release asset or package evidence."],
+  ["deployment", "Deploy", "Configured deployment status."],
 ] as const;
 
 function coordinateSignals(coordinate: DashboardCoordinate) {
@@ -23,296 +23,525 @@ function coordinateSignals(coordinate: DashboardCoordinate) {
     label,
     description:
       key === "deployment" && !coordinate.deploymentApplicable
-        ? "No GitHub deployment is configured for this coordinate."
+        ? "No deployment surface is configured."
         : description,
     evidence: coordinate[key],
   }));
 }
 
-function evidenceHref(evidence: EvidenceSummary): string | null {
-  return evidence.latest?.sourceUrl ?? null;
+function isMetaserver(service: DashboardService): service is MetaserverServiceSummary {
+  return service.surface === "metaserver";
+}
+
+function formatSummary(
+  status: string,
+  observedAt: string | null,
+  ageSeconds: number | null,
+) {
+  if (!observedAt) return `${status} · no observation`;
+  if (typeof ageSeconds !== "number") return status;
+  if (ageSeconds < 60) return `${status} · just now`;
+  if (ageSeconds < 3600) return `${status} · ${Math.floor(ageSeconds / 60)}m ago`;
+  return `${status} · ${Math.floor(ageSeconds / 3600)}h ago`;
 }
 
 const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
 const initialStack = "classic" as "default" | "classic";
+const stackOrder = ["classic", "default"] as const;
+const initialCoordinate =
+  dashboard.coordinates.find((coordinate) => coordinate.stack === initialStack) ??
+  dashboard.coordinates[0];
 ---
 
 <Base
   title="Atrinik Observatory · delivery evidence"
   description="A read-only dashboard for Atrinik build, release, package, deployment, and public-service evidence."
 >
-  <section class="hero" aria-labelledby="hero-title">
+  <section class="hero compact-hero" aria-labelledby="hero-title">
     <div class="hero-inner">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="eyebrow-line"></span> Atrinik / Observatory</p>
-        <h1 id="hero-title">Evidence,<br /><em>not guesswork.</em></h1>
+        <p class="eyebrow">Atrinik / Observatory</p>
+        <h1 id="hero-title">Delivery evidence at a glance</h1>
         <p class="hero-lede">
-          One quiet surface for the signals that keep Atrinik moving: builds, releases,
-          packages, deployments, and the public services around them.
+          Read-only signals across builds, releases, packages, deployments, and services
         </p>
-        <div class="hero-badges" aria-label="Dashboard properties">
-          <span class="pill pill-blue"><span class="pulse-dot"></span> Read-only</span>
-          <span class="pill">GitHub-authoritative</span>
-          <span class="pill">No mutation controls</span>
-        </div>
-      </div>
-      <div class="hero-orbit" aria-hidden="true">
-        <div class="orbit orbit-one"></div>
-        <div class="orbit orbit-two"></div>
-        <div class="orbit orbit-three"></div>
-        <div class="orbit-core"><span></span></div>
-        <span class="orbit-label orbit-label-top">BUILD</span>
-        <span class="orbit-label orbit-label-right">RELEASE</span>
-        <span class="orbit-label orbit-label-bottom">SERVICE</span>
+        <p class="sync-state" id="api-state" data-fetch-state="idle">
+          <span class="sync-dot"></span> Waiting for the first observation
+        </p>
       </div>
     </div>
   </section>
 
-  <section class="dashboard-shell" id="dashboard" aria-labelledby="dashboard-title">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Live signal map</p>
-        <h2 id="dashboard-title">The workspace at a glance</h2>
-      </div>
-      <p class="sync-state" id="api-state" data-fetch-state="idle">
-        <span class="sync-dot"></span> Waiting for the first observation
-      </p>
-    </div>
-
+  <section class="dashboard-shell" id="dashboard" aria-label="Delivery evidence">
     <div class="summary-grid" aria-label="Workspace summary">
       <article class="summary-card summary-card-primary">
-        <p class="summary-label">Coordinates tracked</p>
-        <p class="summary-number" data-summary="total">{dashboard.summary.total}</p>
-        <p class="summary-caption">Across replacement and Classic stacks</p>
+        <span class="summary-icon summary-icon-tracked" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Tracked</p>
+          <p class="summary-number">
+            <span data-summary="total">{dashboard.summary.total}</span>
+            <span class="summary-unit">coordinates</span>
+          </p>
+        </div>
       </article>
       <article class="summary-card">
-        <p class="summary-label">Fully evidenced</p>
-        <p class="summary-number" data-summary="healthy">{dashboard.summary.healthy}</p>
-        <p class="summary-caption summary-caption-muted">Every tracked signal passed</p>
+        <span class="summary-icon summary-icon-healthy" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Healthy</p>
+          <p class="summary-number">
+            <span data-summary="healthy">{dashboard.summary.healthy}</span>
+            <span class="summary-unit">signals</span>
+          </p>
+        </div>
       </article>
       <article class="summary-card summary-card-warning">
-        <p class="summary-label">Needs attention</p>
-        <p class="summary-number" data-summary="attention">
-          {dashboard.summary.attention}
-        </p>
-        <p class="summary-caption summary-caption-muted">Failures stay visible</p>
+        <span class="summary-icon summary-icon-attention" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Attention</p>
+          <p class="summary-number">
+            <span data-summary="attention">{dashboard.summary.attention}</span>
+            <span class="summary-unit">signals</span>
+          </p>
+        </div>
       </article>
       <article class="summary-card summary-card-muted">
-        <p class="summary-label">Unknown / stale</p>
-        <p class="summary-number" data-summary="unknown">
-          {dashboard.summary.unknown + dashboard.summary.stale}
-        </p>
-        <p class="summary-caption summary-caption-muted">
-          Missing data never looks healthy
-        </p>
+        <span class="summary-icon summary-icon-unknown" aria-hidden="true"></span>
+        <div class="summary-content">
+          <p class="summary-label">Unknown / stale</p>
+          <p class="summary-number">
+            <span data-summary="unknown"
+              >{dashboard.summary.unknown + dashboard.summary.stale}</span
+            >
+            <span class="summary-unit">signals</span>
+          </p>
+        </div>
       </article>
     </div>
 
-    <div class="stack-switcher" role="tablist" aria-label="Stack view">
-      <button
-        class:list={["stack-tab", { "is-active": initialStack === "default" }]}
-        type="button"
-        role="tab"
-        aria-selected={initialStack === "default" ? "true" : "false"}
-        aria-controls="stack-default"
-        data-stack-tab="default"
-      >
-        <span class="tab-mark tab-mark-blue"></span> Replacement / default
-      </button>
-      <button
-        class:list={["stack-tab", { "is-active": initialStack === "classic" }]}
-        type="button"
-        role="tab"
-        aria-selected={initialStack === "classic" ? "true" : "false"}
-        aria-controls="stack-classic"
-        data-stack-tab="classic"
-      >
-        <span class="tab-mark tab-mark-gold"></span> Classic
-      </button>
-    </div>
-
-    {
-      (["default", "classic"] as const).map((stack) => {
-        const coordinates = dashboard.coordinates.filter(
-          (coordinate) => coordinate.stack === stack,
-        );
-        return (
-          <section
-            id={`stack-${stack}`}
-            class="stack-panel"
-            data-stack-panel={stack}
-            aria-labelledby={`stack-${stack}-title`}
-            hidden={stack !== initialStack}
-          >
-            <div class="stack-heading">
-              <div>
-                <p class="stack-kicker">
-                  {stack === "default"
-                    ? "M1 / replacement generation"
-                    : "Playable / classic generation"}
-                </p>
-                <h3 id={`stack-${stack}-title`}>
-                  {stack === "default" ? "Replacement stack" : "Classic stack"}
-                </h3>
-              </div>
-              <p class="stack-description">
-                {stack === "default"
-                  ? "Rust, Go, Protobuf, Astro, and the shared foundations around them."
-                  : "The C17/CMake playable line and its isolated playtester support."}
-              </p>
+    <div class="dashboard-layout">
+      <div class="matrix-panel">
+        <div class="workspace-controls">
+          <div class="stack-switcher" role="tablist" aria-label="Stack view">
+            <button
+              class:list={["stack-tab", { "is-active": initialStack === "classic" }]}
+              type="button"
+              role="tab"
+              id="stack-tab-classic"
+              aria-selected={initialStack === "classic" ? "true" : "false"}
+              aria-controls="stack-classic"
+              data-stack-tab="classic"
+            >
+              Classic
+            </button>
+            <button
+              class:list={["stack-tab", { "is-active": initialStack === "default" }]}
+              type="button"
+              role="tab"
+              id="stack-tab-default"
+              aria-selected={initialStack === "default" ? "true" : "false"}
+              aria-controls="stack-default"
+              data-stack-tab="default"
+            >
+              Next Generation
+            </button>
+          </div>
+          <div class="filters" aria-label="Coordinate filters">
+            <label class="filter-search" for="coordinate-filter">
+              <span class="sr-only">Filter coordinates</span>
+              <input
+                id="coordinate-filter"
+                type="search"
+                placeholder="Filter repositories"
+                autocomplete="off"
+                data-coordinate-filter
+              />
+            </label>
+            <div class="filter-buttons" role="group" aria-label="Evidence state filter">
+              <button
+                type="button"
+                class="filter-button is-active"
+                data-filter-status="all"
+                aria-pressed="true"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                class="filter-button"
+                data-filter-status="issues"
+                aria-pressed="false"
+              >
+                Needs attention
+              </button>
+              <button
+                type="button"
+                class="filter-button"
+                data-filter-status="unknown"
+                aria-pressed="false"
+              >
+                Unknown / stale
+              </button>
             </div>
-            <div class="coordinate-grid">
-              {coordinates.map((coordinate) => (
-                <article class="coordinate-card" data-coordinate-id={coordinate.id}>
-                  <header class="coordinate-header">
-                    <div>
-                      <p class="coordinate-component">{coordinate.component}</p>
-                      <a
-                        class="coordinate-repository"
-                        href={githubRepositoryUrl(coordinate.repository)}
-                      >
-                        {coordinate.repository}
-                        <span aria-hidden="true">↗</span>
-                      </a>
-                    </div>
-                    <StatusIndicator status={coordinate.overall} context="overall" />
-                  </header>
-                  <div class="signal-grid">
-                    {coordinateSignals(coordinate).map(
-                      ({ key, label, description, evidence }) => (
-                        <div class="signal" data-evidence-kind={key}>
-                          <div class="signal-topline">
-                            <span class="signal-label">{label}</span>
-                            <StatusIndicator
-                              status={evidence.status}
-                              size="compact"
-                              context="evidence"
-                            />
-                          </div>
-                          <p class="signal-description" data-evidence-description>
-                            {description}
-                          </p>
-                          <div class="signal-meta">
-                            <span data-evidence-observed>
-                              {evidence.status === "not-tracked"
-                                ? "Not tracked"
-                                : evidence.observedAt
-                                  ? "Observed"
-                                  : "No observation"}
-                            </span>
-                            {evidence.status === "not-tracked" ? (
-                              <span class="muted-link" data-evidence-link>
-                                Not tracked
-                              </span>
-                            ) : evidenceHref(evidence) ? (
-                              <a
-                                data-evidence-link
-                                href={evidenceHref(evidence) ?? undefined}
-                              >
-                                View evidence ↗
-                              </a>
-                            ) : (
-                              <span class="muted-link" data-evidence-link>
-                                No link yet
-                              </span>
-                            )}
-                          </div>
-                          <div class="signal-history" aria-label={`${label} history`}>
-                            <span class="history-item">
-                              <span class="history-label">Last good</span>
-                              <a
-                                class="muted-link"
-                                data-evidence-good
-                                aria-label={`${label} last known good evidence`}
-                              >
-                                No record
-                              </a>
-                            </span>
-                            <span class="history-item">
-                              <span class="history-label">Last failure</span>
-                              <a
-                                class="muted-link"
-                                data-evidence-failure
-                                aria-label={`${label} most recent failure evidence`}
-                              >
-                                No record
-                              </a>
-                            </span>
-                          </div>
-                        </div>
-                      ),
-                    )}
+          </div>
+        </div>
+
+        <div class="signal-legend" aria-label="Delivery signal status legend">
+          <span class="legend-title">Delivery signals</span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-passed" aria-hidden="true">✓</span>
+            Passed
+          </span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-attention" aria-hidden="true"
+              >!</span
+            >
+            Attention
+          </span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-unknown" aria-hidden="true">?</span
+            >
+            Unknown
+          </span>
+          <span class="legend-item">
+            <span class="legend-marker legend-marker-not-tracked" aria-hidden="true"
+              >−</span
+            >
+            Not tracked
+          </span>
+        </div>
+
+        {
+          stackOrder.map((stack) => {
+            const coordinates = dashboard.coordinates.filter(
+              (coordinate) => coordinate.stack === stack,
+            );
+            return (
+              <section
+                id={`stack-${stack}`}
+                class="stack-panel"
+                role="tabpanel"
+                data-stack-panel={stack}
+                aria-labelledby={`stack-tab-${stack}`}
+                tabindex="0"
+                hidden={stack !== initialStack}
+              >
+                <div
+                  class="matrix"
+                  role="table"
+                  aria-label={`${stack} evidence matrix`}
+                >
+                  <div class="matrix-header" role="row">
+                    <span role="columnheader" class="matrix-stack-label">
+                      {stack === "default" ? "Next Generation" : "Classic stack"}
+                    </span>
+                    <span role="columnheader">Build</span>
+                    <span role="columnheader">Release</span>
+                    <span role="columnheader">Package</span>
+                    <span role="columnheader">Deploy</span>
                   </div>
-                  <footer class="coordinate-footer">
-                    <span class="generation-tag">
-                      {coordinate.generation} coordinate
-                    </span>
-                    <span data-coordinate-ref>
-                      {coordinate.build.latest?.ref ?? "Awaiting GitHub evidence"}
-                    </span>
-                  </footer>
-                </article>
-              ))}
-            </div>
-          </section>
-        );
-      })
-    }
-  </section>
-
-  <section class="services-shell" id="services" aria-labelledby="services-title">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Public reachability</p>
-        <h2 id="services-title">A small watch on the outside world</h2>
+                  <div class="matrix-body">
+                    {coordinates.map((coordinate) => (
+                      <article
+                        class="matrix-row"
+                        role="row"
+                        data-coordinate-id={coordinate.id}
+                        data-coordinate-status={coordinate.overall}
+                        data-coordinate-text={`${coordinate.component} ${coordinate.repository}`.toLowerCase()}
+                      >
+                        <div class="matrix-coordinate" role="cell">
+                          <button
+                            type="button"
+                            class="coordinate-select"
+                            data-coordinate-select={coordinate.id}
+                            aria-controls="coordinate-detail"
+                            aria-expanded="false"
+                          >
+                            <span class="coordinate-component">
+                              {coordinate.component}
+                            </span>
+                          </button>
+                          <a
+                            class="coordinate-repository"
+                            href={githubRepositoryUrl(coordinate.repository)}
+                          >
+                            {coordinate.repository} <span aria-hidden="true">↗</span>
+                          </a>
+                          <StatusIndicator
+                            status={coordinate.overall}
+                            context="overall"
+                          />
+                        </div>
+                        {coordinateSignals(coordinate).map(
+                          ({ key, label, evidence }) => (
+                            <div
+                              class="matrix-signal"
+                              role="cell"
+                              data-evidence-kind={key}
+                              data-column-label={label}
+                            >
+                              <StatusIndicator
+                                status={evidence.status}
+                                size="compact"
+                                context="evidence"
+                              />
+                              <span class="matrix-observed" data-evidence-observed>
+                                {evidence.status === "not-tracked"
+                                  ? "Not tracked"
+                                  : evidence.observedAt
+                                    ? "Observed"
+                                    : "No observation"}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          })
+        }
       </div>
-      <p class="section-note">Probes are observations, not guarantees.</p>
-    </div>
-    <div class="service-grid">
-      {
-        dashboard.services.map((service) => (
-          <article class="service-card" data-service-id={service.id}>
-            <div class="service-icon" aria-hidden="true">
-              <span />
+      <div class="dashboard-rail">
+        <section class="services-shell" id="services" aria-labelledby="services-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Public services</p>
+              <h2 id="services-title">Public services</h2>
             </div>
-            <div class="service-body">
-              <div class="service-title-row">
-                <h3>{service.name}</h3>
-                <StatusIndicator status={service.status} context="service" />
+            <p class="section-note">Independent read-only surfaces</p>
+          </div>
+          <div class="service-grid">
+            {
+              dashboard.services.map((service) =>
+                isMetaserver(service) ? (
+                  <article
+                    class="service-card metaserver-card"
+                    data-service-id={service.id}
+                  >
+                    <div class="service-card-heading">
+                      <div class="service-icon service-icon-server" aria-hidden="true">
+                        <span />
+                      </div>
+                      <div class="service-card-main">
+                        <p class="service-kicker">Public service</p>
+                        <h3>{service.name}</h3>
+                        <a class="service-url" href={service.url}>
+                          Static directory + WebSocket signaling
+                        </a>
+                      </div>
+                      <StatusIndicator status={service.status} context="service" />
+                    </div>
+                    <div class="surface-list">
+                      <div class="surface-row" data-surface-id="listings">
+                        <div>
+                          <strong>Listings</strong>
+                          <span class="surface-summary" data-surface-summary>
+                            {service.surfaces.listings.availableFormats}/4 formats ·{" "}
+                            {service.surfaces.listings.status}
+                          </span>
+                        </div>
+                        <StatusIndicator
+                          status={service.surfaces.listings.status}
+                          context="service"
+                          size="compact"
+                        />
+                        <p data-surface-observed>
+                          {formatSummary(
+                            service.surfaces.listings.status,
+                            service.surfaces.listings.observedAt,
+                            service.surfaces.listings.ageSeconds,
+                          )}
+                        </p>
+                      </div>
+                      <div class="surface-row" data-surface-id="rendezvous">
+                        <div>
+                          <strong>Rendezvous rooms</strong>
+                          <span class="surface-summary" data-surface-summary>
+                            {service.surfaces.rendezvous.status} · no safe aggregate
+                            source
+                          </span>
+                        </div>
+                        <StatusIndicator
+                          status={service.surfaces.rendezvous.status}
+                          context="service"
+                          size="compact"
+                        />
+                        <p data-surface-observed>{service.surfaces.rendezvous.error}</p>
+                      </div>
+                    </div>
+                    <details class="surface-details">
+                      <summary>
+                        Show format evidence and safe observation boundaries
+                      </summary>
+                      <div class="format-list" data-format-list>
+                        {service.surfaces.listings.formats.map((format) => (
+                          <div class="format-row" data-format={format.format}>
+                            <span>{format.label}</span>
+                            <StatusIndicator
+                              status={format.status}
+                              context="service"
+                              size="compact"
+                            />
+                            <span class="format-metric" data-format-response>
+                              {format.statusCode ?? "—"} · {format.responseMs ?? "—"}ms
+                              · {format.generation ?? "no generation"}
+                            </span>
+                            <a href={format.url}>Open listing ↗</a>
+                          </div>
+                        ))}
+                      </div>
+                      <p class="surface-boundary" data-rendezvous-boundary>
+                        Rendezvous stays Unknown unless a documented operator-safe
+                        source reports route, authenticated-control, and recent
+                        admission signals. No room, server ID, or token is enumerated
+                        here.
+                      </p>
+                      {service.surfaces.rendezvous.evidenceUrl ? (
+                        <a
+                          class="surface-boundary-link"
+                          href={service.surfaces.rendezvous.evidenceUrl}
+                        >
+                          Read the rendezvous contract ↗
+                        </a>
+                      ) : null}
+                    </details>
+                  </article>
+                ) : (
+                  <article class="service-card" data-service-id={service.id}>
+                    <div class="service-icon" aria-hidden="true">
+                      <span />
+                    </div>
+                    <div class="service-body">
+                      <div class="service-title-row">
+                        <h3>{service.name}</h3>
+                        <StatusIndicator status={service.status} context="service" />
+                      </div>
+                      <a class="service-url" href={service.url}>
+                        {service.url} <span aria-hidden="true">↗</span>
+                      </a>
+                      <p class="service-observation" data-service-observed>
+                        No probe observation yet. Missing data is unknown.
+                      </p>
+                    </div>
+                  </article>
+                ),
+              )
+            }
+          </div>
+        </section>
+
+        <aside
+          class="detail-panel"
+          id="coordinate-detail"
+          aria-labelledby="detail-title"
+          aria-live="polite"
+        >
+          <div class="detail-empty" data-detail-empty hidden>
+            <p class="eyebrow">Selected coordinate</p>
+            <h3>Choose a row to inspect evidence</h3>
+            <p>
+              Build, release, package, deployment, direct links, and history appear
+              here.
+            </p>
+          </div>
+          <div class="detail-content" data-detail-content>
+            <div class="detail-heading">
+              <div>
+                <p class="eyebrow">Selected coordinate</p>
+                <h3 id="detail-title" data-detail-component>
+                  {initialCoordinate?.repository ?? "Choose a row"}
+                </h3>
+                <a
+                  data-detail-repository
+                  href={initialCoordinate
+                    ? githubRepositoryUrl(initialCoordinate.repository)
+                    : undefined}
+                >
+                  {initialCoordinate ? "View on GitHub ↗" : "Awaiting GitHub evidence"}
+                </a>
               </div>
-              <a class="service-url" href={service.url}>
-                {service.url}
-                <span aria-hidden="true">↗</span>
-              </a>
-              <p class="service-observation" data-service-observed>
-                No probe observation yet. Missing data is unknown.
+              <StatusIndicator
+                status={initialCoordinate?.overall ?? "unknown"}
+                context="overall"
+              />
+            </div>
+            <div class="detail-grid">
+              {
+                signalDefinitions.map(([key, label, description]) => {
+                  const evidence = initialCoordinate?.[key];
+                  return (
+                    <article class="detail-signal" data-detail-signal={key}>
+                      <div class="detail-signal-heading">
+                        <div>
+                          <p class="detail-signal-label">{label}</p>
+                          <p class="detail-signal-description" data-detail-description>
+                            {key === "deployment" &&
+                            initialCoordinate?.deploymentApplicable === false
+                              ? "No deployment surface is configured for this coordinate."
+                              : description}
+                          </p>
+                        </div>
+                        <StatusIndicator
+                          status={evidence?.status ?? "unknown"}
+                          size="compact"
+                          context="evidence"
+                        />
+                      </div>
+                      <p class="detail-observed" data-detail-observed>
+                        {evidence?.status === "not-tracked"
+                          ? "Not tracked"
+                          : evidence?.observedAt
+                            ? "Observed"
+                            : "No observation"}
+                      </p>
+                      <div class="detail-evidence-links">
+                        <a data-detail-evidence-link>
+                          {evidence?.latest ? "View evidence ↗" : "No link yet"}
+                        </a>
+                        <span>
+                          <span class="history-label">Last good</span>
+                          <a data-detail-good>No record</a>
+                        </span>
+                        <span>
+                          <span class="history-label">Last failure</span>
+                          <a data-detail-failure>No record</a>
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })
+              }
+            </div>
+            <p class="detail-ref">
+              Ref: <span data-detail-ref
+                >{
+                  initialCoordinate?.build.latest?.ref ?? "Awaiting GitHub evidence"
+                }</span
+              >
+            </p>
+          </div>
+        </aside>
+
+        <section class="about-shell" id="about" aria-labelledby="about-title">
+          <div class="about-panel">
+            <div>
+              <p class="eyebrow">How to read this</p>
+              <h2 id="about-title">
+                Signals reflect the latest known state from our data sources.
+              </h2>
+            </div>
+            <div class="about-copy">
+              <p>
+                They are read-only and may lag behind in-flight activity. Evidence links
+                return to GitHub or public listings; no logs, private rooms, tokens, or
+                mutation controls are exposed.
               </p>
             </div>
-          </article>
-        ))
-      }
-    </div>
-  </section>
-
-  <section class="about-shell" id="about" aria-labelledby="about-title">
-    <div class="about-panel">
-      <div>
-        <p class="eyebrow">How to read this</p>
-        <h2 id="about-title">A green light has a narrow meaning.</h2>
-      </div>
-      <div class="about-copy">
-        <p>
-          Observatory keeps build, release, package, deployment, and service evidence
-          separate. A passing workflow can be followed by a failed release, a missing
-          package, or a stale probe. Those are different facts, and the dashboard
-          refuses to blur them together.
-        </p>
-        <p>
-          Every detailed link returns to the originating GitHub run, check, release,
-          asset, or deployment. The dashboard stores compact normalized summaries and
-          delivery identifiers; it does not mirror logs or large artifacts, and it
-          cannot rerun, cancel, publish, deploy, or mutate them.
-        </p>
+            <span class="about-chevron" aria-hidden="true">⌄</span>
+          </div>
+        </section>
       </div>
     </div>
   </section>
@@ -336,8 +565,6 @@ const initialStack = "classic" as "default" | "classic";
         : String(status)
             .replace(/[-_]+/g, " ")
             .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
-
-    const statusClass = (status) => `status-${status}`;
     const statusToken = (status) =>
       typeof status === "string" && /^[a-z]+(?:[-_][a-z]+)*$/.test(status)
         ? status
@@ -353,7 +580,6 @@ const initialStack = "classic" as "default" | "classic";
       }
       return "Observed";
     };
-
     const formatEventDate = (value) => {
       if (!value) return "No record";
       const date = new Date(value);
@@ -361,95 +587,199 @@ const initialStack = "classic" as "default" | "classic";
         ? "Recorded"
         : date.toISOString().replace("T", " ").slice(0, 19) + "Z";
     };
+    const isSafeUrl = (value) => {
+      if (typeof value !== "string" || !/^https:\/\//.test(value)) return false;
+      try {
+        return new URL(value).protocol === "https:" && Boolean(new URL(value).hostname);
+      } catch {
+        return false;
+      }
+    };
 
     const setStatus = (element, status) => {
       if (!element) return;
       const normalizedStatus = statusToken(status);
       const currentStatus = element.dataset.status;
-      if (currentStatus) element.classList.remove(statusClass(currentStatus));
-      element.classList.add(statusClass(normalizedStatus));
+      if (currentStatus) element.classList.remove(`status-${currentStatus}`);
+      element.classList.add(`status-${normalizedStatus}`);
       element.dataset.status = normalizedStatus;
-
-      const label = statusLabel(normalizedStatus);
       const labelElement = element.querySelector("[data-status-label]");
-      if (labelElement) {
-        labelElement.textContent = label;
-      } else {
-        const newLabel = document.createElement("span");
-        newLabel.className = "status-label";
-        newLabel.dataset.statusLabel = "";
-        newLabel.textContent = label;
-        const icon = element.querySelector(".status-icon");
-        if (icon) icon.after(newLabel);
-        else element.append(newLabel);
-      }
-      element.setAttribute("aria-label", `Status: ${label}`);
+      if (labelElement) labelElement.textContent = statusLabel(normalizedStatus);
+      element.setAttribute("aria-label", `Status: ${statusLabel(normalizedStatus)}`);
     };
 
-    const setEvidence = (element, evidence, deploymentApplicable) => {
-      const statusElement = element.querySelector('[data-status-role="evidence"]');
-      setStatus(statusElement, evidence.status);
-      const description = element.querySelector("[data-evidence-description]");
-      if (description && typeof deploymentApplicable === "boolean") {
-        description.textContent = deploymentApplicable
-          ? "The latest GitHub deployment status."
-          : "No GitHub deployment is configured for this coordinate.";
+    const setLink = (element, href, label) => {
+      if (!element) return;
+      if (href && isSafeUrl(href)) {
+        element.textContent = label;
+        element.setAttribute("href", href);
+        element.classList.remove("muted-link");
+      } else {
+        element.textContent = "No link yet";
+        element.removeAttribute("href");
+        element.classList.add("muted-link");
       }
-      const observedElement = element.querySelector("[data-evidence-observed]");
-      if (observedElement) {
-        observedElement.textContent = formatObserved(
+    };
+
+    const setHistory = (element, record, kind) => {
+      if (!element) return;
+      const href = record?.packageUrl ?? record?.artifactUrl ?? record?.sourceUrl;
+      element.textContent = record
+        ? `${kind} · ${formatEventDate(record.observedAt)}`
+        : "No record";
+      if (record && href && isSafeUrl(href)) {
+        element.setAttribute("href", href);
+        element.classList.remove("muted-link");
+      } else {
+        element.removeAttribute("href");
+        element.classList.add("muted-link");
+      }
+    };
+
+    const setMatrixEvidence = (element, evidence) => {
+      setStatus(
+        element?.querySelector('[data-status-role="evidence"]'),
+        evidence.status,
+      );
+      const observed = element?.querySelector("[data-evidence-observed]");
+      if (observed)
+        observed.textContent = formatObserved(
           evidence.observedAt,
           evidence.ageSeconds,
           evidence.status,
         );
+    };
+
+    const setDetailEvidence = (element, evidence, deploymentApplicable) => {
+      if (!element) return;
+      setStatus(
+        element.querySelector('[data-status-role="evidence"]'),
+        evidence.status,
+      );
+      const description = element.querySelector("[data-detail-description]");
+      if (description && evidence.status === "not-tracked") {
+        description.textContent =
+          "No deployment surface is configured for this coordinate.";
+      } else if (description && deploymentApplicable === false) {
+        description.textContent =
+          "No deployment surface is configured for this coordinate.";
       }
-      const link = element.querySelector("[data-evidence-link]");
-      const href =
+      const observed = element.querySelector("[data-detail-observed]");
+      if (observed)
+        observed.textContent = formatObserved(
+          evidence.observedAt,
+          evidence.ageSeconds,
+          evidence.status,
+        );
+      setLink(
+        element.querySelector("[data-detail-evidence-link]"),
         evidence.latest?.packageUrl ??
-        evidence.latest?.artifactUrl ??
-        evidence.latest?.sourceUrl;
-      if (link && evidence.status === "not-tracked") {
-        link.textContent = "Not tracked";
-        link.removeAttribute("href");
-        link.classList.add("muted-link");
-      } else if (link && href && /^https:\/\//.test(href)) {
-        link.textContent = "View evidence ↗";
-        link.setAttribute("href", href);
-        link.classList.remove("muted-link");
-      } else if (link) {
-        link.textContent = "No link yet";
-        link.removeAttribute("href");
-        link.classList.add("muted-link");
-      }
-
-      const setHistory = (historyElement, record, kind) => {
-        if (!historyElement) return;
-        const href = record?.packageUrl ?? record?.artifactUrl ?? record?.sourceUrl;
-        historyElement.textContent = record
-          ? `${kind} · ${formatEventDate(record.observedAt)}`
-          : "No record";
-        if (record && href && /^https:\/\//.test(href)) {
-          historyElement.setAttribute("href", href);
-          historyElement.classList.remove("muted-link");
-        } else {
-          historyElement.removeAttribute("href");
-          historyElement.classList.add("muted-link");
-        }
-      };
-
+          evidence.latest?.artifactUrl ??
+          evidence.latest?.sourceUrl,
+        "View evidence ↗",
+      );
       setHistory(
-        element.querySelector("[data-evidence-good]"),
+        element.querySelector("[data-detail-good]"),
         evidence.lastKnownGood,
         "Passed",
       );
       setHistory(
-        element.querySelector("[data-evidence-failure]"),
+        element.querySelector("[data-detail-failure]"),
         evidence.mostRecentFailure,
         "Failed",
       );
     };
 
+    let currentDashboard = initialStatus;
+    let selectedCoordinateId = null;
+    let activeFilter = "all";
+
+    const updateDetail = (coordinate) => {
+      if (!coordinate) return;
+      selectedCoordinateId = coordinate.id;
+      const empty = document.querySelector("[data-detail-empty]");
+      const content = document.querySelector("[data-detail-content]");
+      if (empty) empty.hidden = true;
+      if (content) content.hidden = false;
+      const component = document.querySelector("[data-detail-component]");
+      if (component) component.textContent = coordinate.repository;
+      const repository = document.querySelector("[data-detail-repository]");
+      if (repository) {
+        repository.textContent = "View on GitHub ↗";
+        if (isSafeUrl(`https://github.com/${coordinate.repository}`)) {
+          repository.setAttribute(
+            "href",
+            `https://github.com/${coordinate.repository}`,
+          );
+        } else {
+          repository.removeAttribute("href");
+        }
+      }
+      setStatus(
+        document.querySelector('[data-detail-content] [data-status-role="overall"]'),
+        coordinate.overall,
+      );
+      for (const key of ["build", "release", "package", "deployment"]) {
+        const signal = [...document.querySelectorAll("[data-detail-signal]")].find(
+          (candidate) => candidate.getAttribute("data-detail-signal") === key,
+        );
+        setDetailEvidence(
+          signal,
+          coordinate[key],
+          key === "deployment" ? coordinate.deploymentApplicable : undefined,
+        );
+      }
+      const ref = document.querySelector("[data-detail-ref]");
+      if (ref)
+        ref.textContent = coordinate.build.latest?.ref ?? "Awaiting GitHub evidence";
+      for (const button of document.querySelectorAll("[data-coordinate-select]")) {
+        const active = button.getAttribute("data-coordinate-select") === coordinate.id;
+        button.setAttribute("aria-expanded", String(active));
+        button.closest(".matrix-row")?.classList.toggle("is-selected", active);
+      }
+    };
+
+    const updateSurface = (card, id, surface) => {
+      const row = [...card.querySelectorAll("[data-surface-id]")].find(
+        (candidate) => candidate.getAttribute("data-surface-id") === id,
+      );
+      if (!row) return;
+      setStatus(row.querySelector('[data-status-role="service"]'), surface.status);
+      const summary = row.querySelector("[data-surface-summary]");
+      if (summary) {
+        summary.textContent =
+          id === "listings"
+            ? `${surface.availableFormats}/${surface.requiredFormats.length} formats · ${statusLabel(surface.status)}${surface.crossFormatSkew ? " · cross-format skew" : ""}`
+            : `${statusLabel(surface.status)} · ${surface.safeObservationAvailable ? "safe source" : "no safe aggregate source"}`;
+      }
+      const observed = row.querySelector("[data-surface-observed]");
+      if (observed)
+        observed.textContent =
+          id === "listings"
+            ? formatObserved(surface.observedAt, surface.ageSeconds, surface.status)
+            : surface.error;
+      if (observed && id === "listings" && surface.crossFormatSkew) {
+        observed.textContent += " · bounded parity skew detected";
+      }
+      if (id === "listings") {
+        for (const format of surface.formats) {
+          const formatRow = [...card.querySelectorAll("[data-format]")].find(
+            (candidate) => candidate.getAttribute("data-format") === format.format,
+          );
+          setStatus(
+            formatRow?.querySelector('[data-status-role="service"]'),
+            format.status,
+          );
+          const metric = formatRow?.querySelector("[data-format-response]");
+          if (metric) {
+            metric.textContent = `${format.statusCode ?? "—"} · ${format.responseMs ?? "—"}ms · ${format.generation ?? "no generation"}`;
+          }
+        }
+      }
+    };
+
     const updateDashboard = (dashboard) => {
+      currentDashboard = dashboard;
       for (const key of ["total", "healthy", "attention"]) {
         const element = document.querySelector(`[data-summary="${key}"]`);
         if (element) element.textContent = String(dashboard.summary[key]);
@@ -461,44 +791,75 @@ const initialStack = "classic" as "default" | "classic";
         );
 
       for (const coordinate of dashboard.coordinates) {
-        const card = document.querySelector(`[data-coordinate-id="${coordinate.id}"]`);
-        if (!card) continue;
+        const row = [...document.querySelectorAll(".matrix-row")].find(
+          (candidate) => candidate.getAttribute("data-coordinate-id") === coordinate.id,
+        );
+        if (!row) continue;
+        row.dataset.coordinateStatus = coordinate.overall;
         setStatus(
-          card.querySelector('[data-status-role="overall"]'),
+          row.querySelector('[data-status-role="overall"]'),
           coordinate.overall,
         );
         for (const key of ["build", "release", "package", "deployment"]) {
-          const signal = card.querySelector(`[data-evidence-kind="${key}"]`);
-          if (signal)
-            setEvidence(
-              signal,
-              coordinate[key],
-              key === "deployment" ? coordinate.deploymentApplicable : undefined,
-            );
+          setMatrixEvidence(
+            row.querySelector(`[data-evidence-kind="${key}"]`),
+            coordinate[key],
+          );
         }
-        const ref = card.querySelector("[data-coordinate-ref]");
-        if (ref)
-          ref.textContent = coordinate.build.latest?.ref ?? "Awaiting GitHub evidence";
       }
 
       for (const service of dashboard.services) {
-        const card = document.querySelector(`[data-service-id="${service.id}"]`);
+        const card = [...document.querySelectorAll("[data-service-id]")].find(
+          (candidate) => candidate.getAttribute("data-service-id") === service.id,
+        );
         if (!card) continue;
         setStatus(card.querySelector('[data-status-role="service"]'), service.status);
-        const observed = card.querySelector("[data-service-observed]");
-        if (observed) {
-          const detail = service.statusCode
-            ? `${service.statusCode} · ${service.responseMs ?? "—"}ms`
-            : (service.error ?? "No probe observation yet. Missing data is unknown.");
-          observed.textContent = `${formatObserved(service.observedAt, service.ageSeconds)} · ${detail}`;
+        if (service.surface === "metaserver") {
+          updateSurface(card, "listings", service.surfaces.listings);
+          updateSurface(card, "rendezvous", service.surfaces.rendezvous);
+        } else {
+          const observed = card.querySelector("[data-service-observed]");
+          if (observed) {
+            const detail = service.statusCode
+              ? `${service.statusCode} · ${service.responseMs ?? "—"}ms`
+              : (service.error ?? "No probe observation yet. Missing data is unknown.");
+            observed.textContent = `${formatObserved(service.observedAt, service.ageSeconds, service.status)} · ${detail}`;
+          }
         }
       }
+
+      const selected =
+        dashboard.coordinates.find(
+          (coordinate) => coordinate.id === selectedCoordinateId,
+        ) ??
+        dashboard.coordinates.find((coordinate) => coordinate.stack === "classic") ??
+        dashboard.coordinates[0];
+      updateDetail(selected);
+      applyFilter();
     };
 
     const setApiState = (message, state) => {
       if (!apiState) return;
       apiState.dataset.fetchState = state;
-      apiState.innerHTML = `<span class="sync-dot"></span> ${message}`;
+      apiState.textContent = "";
+      const dot = document.createElement("span");
+      dot.className = "sync-dot";
+      dot.setAttribute("aria-hidden", "true");
+      apiState.append(dot, ` ${message}`);
+    };
+
+    const applyFilter = () => {
+      const input = document.querySelector("[data-coordinate-filter]");
+      const query = input?.value.trim().toLowerCase() ?? "";
+      for (const row of document.querySelectorAll(".matrix-row")) {
+        const textMatch = !query || (row.dataset.coordinateText ?? "").includes(query);
+        const status = row.dataset.coordinateStatus ?? "unknown";
+        const statusMatch =
+          activeFilter === "all" ||
+          (activeFilter === "issues" && status !== "passed") ||
+          (activeFilter === "unknown" && (status === "unknown" || status === "stale"));
+        row.hidden = !(textMatch && statusMatch);
+      }
     };
 
     if (initialStatus) updateDashboard(initialStatus);
@@ -526,6 +887,30 @@ const initialStack = "classic" as "default" | "classic";
         for (const panel of document.querySelectorAll("[data-stack-panel]")) {
           panel.hidden = panel.getAttribute("data-stack-panel") !== selected;
         }
+        applyFilter();
+      });
+    }
+
+    for (const button of document.querySelectorAll("[data-coordinate-select]")) {
+      button.addEventListener("click", () => {
+        const id = button.getAttribute("data-coordinate-select");
+        updateDetail(
+          currentDashboard?.coordinates.find((coordinate) => coordinate.id === id),
+        );
+      });
+    }
+    document
+      .querySelector("[data-coordinate-filter]")
+      ?.addEventListener("input", applyFilter);
+    for (const button of document.querySelectorAll("[data-filter-status]")) {
+      button.addEventListener("click", () => {
+        activeFilter = button.getAttribute("data-filter-status") ?? "all";
+        for (const candidate of document.querySelectorAll("[data-filter-status]")) {
+          const active = candidate === button;
+          candidate.classList.toggle("is-active", active);
+          candidate.setAttribute("aria-pressed", String(active));
+        }
+        applyFilter();
       });
     }
   </script>

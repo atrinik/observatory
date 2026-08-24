@@ -19,7 +19,13 @@ export const OBSERVATION_STATUSES = [
   "unknown",
 ] as const;
 export type ObservationStatus = (typeof OBSERVATION_STATUSES)[number];
-export type DisplayStatus = ObservationStatus | "stale" | "not-tracked";
+export type DisplayStatus = ObservationStatus | "attention" | "stale" | "not-tracked";
+
+export const LISTING_FORMATS = ["root", "html", "json", "xml"] as const;
+export type ListingFormat = (typeof LISTING_FORMATS)[number];
+
+export const SERVICE_SURFACES = ["service", "listings", "rendezvous"] as const;
+export type ServiceSurface = (typeof SERVICE_SURFACES)[number];
 
 export type Generation = "replacement" | "classic" | "shared";
 
@@ -72,9 +78,13 @@ export interface ServiceProbe {
   url: string;
   stack: Stack;
   staleAfterSeconds: number;
+  surface: ServiceSurface;
+  format: ListingFormat | null;
+  evidenceUrl: string | null;
 }
 
 export interface ServiceSummary extends ServiceProbe {
+  surface: "service";
   status: DisplayStatus;
   lastObservedStatus: ObservationStatus | null;
   observedAt: string | null;
@@ -84,6 +94,80 @@ export interface ServiceSummary extends ServiceProbe {
   responseMs: number | null;
   error: string | null;
 }
+
+export interface ListingFormatSummary {
+  format: ListingFormat;
+  label: string;
+  url: string;
+  status: DisplayStatus;
+  lastObservedStatus: ObservationStatus | null;
+  observedAt: string | null;
+  ageSeconds: number | null;
+  stale: boolean;
+  statusCode: number | null;
+  responseMs: number | null;
+  generation: string | null;
+  entryCount: number | null;
+  parityKey: string | null;
+  error: string | null;
+}
+
+export interface ListingsSurfaceSummary {
+  id: "listings";
+  name: "Listings";
+  status: DisplayStatus;
+  observedAt: string | null;
+  ageSeconds: number | null;
+  stale: boolean;
+  requiredFormats: ListingFormat[];
+  availableFormats: number;
+  generation: string | null;
+  entryCount: number | null;
+  crossFormatSkew: boolean;
+  evidenceUrl: string | null;
+  formats: ListingFormatSummary[];
+}
+
+export interface RendezvousSurfaceSummary {
+  id: "rendezvous";
+  name: "Rendezvous rooms";
+  status: DisplayStatus;
+  observedAt: null;
+  ageSeconds: null;
+  stale: false;
+  routeStatus: DisplayStatus;
+  controlsStatus: DisplayStatus;
+  admissionStatus: DisplayStatus;
+  observationSource: string | null;
+  safeObservationAvailable: false;
+  evidenceUrl: string | null;
+  error: string;
+}
+
+export interface MetaserverServiceSummary {
+  id: "metaserver";
+  name: "Atrinik metaserver";
+  url: string;
+  stack: Stack;
+  staleAfterSeconds: number;
+  surface: "metaserver";
+  format: null;
+  evidenceUrl: string | null;
+  status: DisplayStatus;
+  lastObservedStatus: ObservationStatus | null;
+  observedAt: string | null;
+  ageSeconds: number | null;
+  stale: boolean;
+  statusCode: number | null;
+  responseMs: number | null;
+  error: string | null;
+  surfaces: {
+    listings: ListingsSurfaceSummary;
+    rendezvous: RendezvousSurfaceSummary;
+  };
+}
+
+export type DashboardService = ServiceSummary | MetaserverServiceSummary;
 
 export interface DashboardSummary {
   total: number;
@@ -98,7 +182,7 @@ export interface DashboardStatus {
   generatedAt: string | null;
   staleAfterSeconds: number;
   coordinates: DashboardCoordinate[];
-  services: ServiceSummary[];
+  services: DashboardService[];
   summary: DashboardSummary;
 }
 
@@ -125,4 +209,8 @@ export interface ServiceObservation {
   statusCode: number | null;
   responseMs: number | null;
   error: string | null;
+  format: ListingFormat | null;
+  generation: string | null;
+  entryCount: number | null;
+  parityKey: string | null;
 }
