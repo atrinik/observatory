@@ -5,11 +5,13 @@ deployment, and public-service evidence across Atrinik repositories. It keeps
 the signals separate and links every detail back to the GitHub run, check,
 release, asset, or deployment that produced it.
 
-The first version is intentionally conservative: missing data is `unknown`, old
-data is `stale`, coordinates without a configured deployment surface are
-`not-tracked`, and a successful build never implies that a release or package
-exists. Observatory stores compact normalized summaries and delivery
-identifiers; GitHub remains the authority for logs and large artifacts.
+The first version is intentionally conservative: missing data is `unknown`,
+event-driven delivery evidence keeps its latest explicit status while exposing
+observation age, scheduled service and listing probes can become `stale`, and
+coordinates without a configured deployment surface are `not-tracked`. A
+successful build never implies that a release or package exists. Observatory
+stores compact normalized summaries and delivery identifiers; GitHub remains
+the authority for logs and large artifacts.
 
 ## Architecture
 

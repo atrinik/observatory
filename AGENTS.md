@@ -11,8 +11,11 @@ change that repository only through a separately scoped wrapper delivery.
 
 - GitHub is authoritative for workflow logs, checks, releases, packages, and
   artifacts. Store normalized summaries and links, never large raw payloads.
-- Missing observations are `unknown`; observations older than the configured
-  threshold are `stale`. Neither is healthy.
+- Missing observations are `unknown`; scheduled service and listing probe
+  observations older than their configured thresholds are `stale`. Event-
+  driven delivery evidence retains its latest explicit status and exposes age
+  without expiring solely through inactivity. Neither `unknown` nor `stale`
+  is healthy.
 - Webhook ingestion verifies HMAC signatures, records delivery IDs, and appends
   records. Ordering is derived from event timestamps, so replays cannot make a
   newer state look old.

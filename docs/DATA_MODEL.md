@@ -83,10 +83,13 @@ controls, or recent admission. Observatory therefore reports the surface as
 rooms, server IDs, tokens, or private telemetry. The surface is not silently
 treated as `not-tracked` and cannot be hidden by healthy listings.
 
-The API marks a service `stale` after its probe-specific threshold. No row means
-`unknown`; a failed HTTP response is `failed`; a partial or skewed listing set is
-`attention`. Neither condition is rendered as healthy. The public status
-document keeps `services[...].surfaces.listings` and
+The API marks a scheduled service or listing probe `stale` after its
+probe-specific threshold. Event-driven coordinate evidence keeps its latest
+explicit status and exposes its observation age instead of expiring solely
+because time passed. No row means `unknown`; a failed HTTP response is
+`failed`; a partial or skewed listing set is `attention`. Neither condition is
+rendered as healthy. The public status document keeps
+`services[...].surfaces.listings` and
 `services[...].surfaces.rendezvous` independent so SSR and client refresh share
 the same semantics.
 
