@@ -6,11 +6,14 @@
 evidence link for the workflow log, failed job, check, release, asset, or
 deployment. Interpret statuses as follows:
 
-- `passed`: the latest evidence was explicitly successful and is fresh;
+- `passed`: the latest event-driven evidence was explicitly successful, or a
+  scheduled probe passed within its configured freshness threshold;
 - `failed`: the latest evidence reports failure;
 - `cancelled`: the latest evidence was cancelled or deactivated;
 - `running`: the latest evidence is queued or active;
-- `stale`: the latest evidence is older than its threshold; and
+- `stale`: a scheduled service or listing probe is older than its configured
+  freshness threshold; event-driven delivery evidence does not become stale
+  solely through inactivity; and
 - `attention`: an aggregate surface is incomplete or internally inconsistent;
   inspect its aligned child rows; and
 - `unknown`: there is no usable observation or the source did not expose a known

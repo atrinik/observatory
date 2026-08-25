@@ -29,6 +29,7 @@ const observation: NormalizedObservation = {
 class FakeDatabase {
   readonly deliveries = new Map<string, string>();
   readonly observationIds = new Set<string>();
+  readonly coordinateObservations: unknown[] = [];
 
   readonly prepare = (sql: string) => new FakeStatement(this, sql);
 
@@ -55,7 +56,7 @@ class FakeStatement {
       return { results: [coordinate] as T[] };
     }
     if (this.sql.includes("FROM coordinate_observations")) {
-      return { results: [] as T[] };
+      return { results: this.database.coordinateObservations as T[] };
     }
     if (this.sql.includes("FROM service_probes")) {
       return { results: [] as T[] };
@@ -160,6 +161,40 @@ describe("D1 dashboard reads", () => {
           id: "default:observatory",
           deploymentApplicable: true,
           deployment: { status: "unknown" },
+          overall: "unknown",
+        },
+      ],
+    });
+  });
+
+  it("keeps old event-driven status passed in the public dashboard projection", async () => {
+    const database = new FakeDatabase();
+    database.coordinateObservations.push({
+      id: "old-build",
+      coordinate_id: coordinate.id,
+      kind: "build",
+      status: "passed",
+      observed_at: "2026-08-22T00:00:00.000Z",
+      received_at: "2026-08-22T00:00:01.000Z",
+      ref: "main",
+      commit_sha: "abc123",
+      title: "Validate",
+      source_url: "https://github.com/atrinik/observatory/actions/runs/1",
+      workflow_name: "Validate",
+      release_tag: null,
+      package_url: null,
+      artifact_url: null,
+    });
+
+    await expect(
+      readDashboard(
+        database as unknown as D1Database,
+        new Date("2026-08-23T00:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      coordinates: [
+        {
+          build: { status: "passed", stale: false, ageSeconds: 86400 },
           overall: "unknown",
         },
       ],

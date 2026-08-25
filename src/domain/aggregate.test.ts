@@ -85,19 +85,103 @@ describe("aggregateDashboard", () => {
     expect(dashboard.summary.unknown).toBe(1);
   });
 
-  it("marks old observations stale instead of healthy", () => {
+  it("keeps old event-driven evidence passed while exposing its age", () => {
     const dashboard = aggregateDashboard(
       [coordinate],
-      [record({ observedAt: "2026-08-22T00:00:00.000Z" })],
+      [
+        record({ id: "old-build", kind: "build" }),
+        record({ id: "old-release", kind: "release" }),
+        record({ id: "old-package", kind: "package" }),
+        record({ id: "old-deployment", kind: "deployment" }),
+      ].map((observation) => ({
+        ...observation,
+        observedAt: "2026-08-22T00:00:00.000Z",
+      })),
       [],
       [],
       new Date("2026-08-23T00:00:00.000Z"),
       21600,
     );
 
-    expect(dashboard.coordinates[0]?.build.status).toBe("stale");
-    expect(dashboard.summary.stale).toBe(1);
-    expect(dashboard.summary.healthy).toBe(0);
+    expect(dashboard.coordinates[0]).toMatchObject({
+      overall: "passed",
+      build: { status: "passed", stale: false, ageSeconds: 86400 },
+      release: { status: "passed", stale: false, ageSeconds: 86400 },
+      package: { status: "passed", stale: false, ageSeconds: 86400 },
+      deployment: { status: "passed", stale: false, ageSeconds: 86400 },
+    });
+    expect(dashboard.summary).toMatchObject({
+      healthy: 1,
+      stale: 0,
+      unknown: 0,
+    });
+  });
+
+  it.each(["failed", "cancelled", "running"] as const)(
+    "keeps a newer %s event status ahead of an older pass",
+    (status) => {
+      const dashboard = aggregateDashboard(
+        [coordinate],
+        [
+          record({
+            id: "older-pass",
+            observedAt: "2026-08-22T00:00:00.000Z",
+          }),
+          record({
+            id: "newer-" + status,
+            status,
+            observedAt: "2026-08-23T00:00:00.000Z",
+          }),
+        ],
+        [],
+        [],
+        new Date("2026-08-24T00:00:00.000Z"),
+        21600,
+      );
+
+      expect(dashboard.coordinates[0]?.build).toMatchObject({
+        status,
+        lastObservedStatus: status,
+        stale: false,
+        ageSeconds: 86400,
+      });
+      expect(dashboard.coordinates[0]?.overall).toBe(status);
+    },
+  );
+
+  it("keeps scheduled service freshness independent from event evidence", () => {
+    const probe = SERVICE_PROBES.find((candidate) => candidate.surface === "service");
+    expect(probe).toBeDefined();
+    if (!probe) return;
+
+    const dashboard = aggregateDashboard(
+      [],
+      [],
+      [probe],
+      [
+        {
+          id: "old-service-observation",
+          probeId: probe.id,
+          status: "passed",
+          observedAt: "2026-08-22T00:00:00.000Z",
+          statusCode: 200,
+          responseMs: 40,
+          error: null,
+          format: null,
+          generation: null,
+          entryCount: null,
+          parityKey: null,
+        },
+      ],
+      new Date("2026-08-23T00:00:00.000Z"),
+      21600,
+    );
+
+    expect(dashboard.services[0]).toMatchObject({
+      status: "stale",
+      stale: true,
+      ageSeconds: 86400,
+    });
   });
 
   it("does not turn missing release or package records into passes", () => {

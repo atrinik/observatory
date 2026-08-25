@@ -78,11 +78,7 @@ function notTrackedEvidence(): EvidenceSummary {
   };
 }
 
-function summarizeEvidence(
-  records: EvidenceRecord[],
-  now: Date,
-  staleAfterSeconds: number,
-): EvidenceSummary {
+function summarizeEventEvidence(records: EvidenceRecord[], now: Date): EvidenceSummary {
   if (records.length === 0) return emptyEvidence();
 
   const ordered = [...records].sort(compareNewest);
@@ -93,7 +89,6 @@ function summarizeEvidence(
     0,
     Math.floor((now.getTime() - timestampValue(latest.observedAt)) / 1000),
   );
-  const stale = ageSeconds > staleAfterSeconds;
   const lastKnownGood = ordered.find((record) => record.status === "passed") ?? null;
   const mostRecentFailure =
     ordered.find(
@@ -101,11 +96,11 @@ function summarizeEvidence(
     ) ?? null;
 
   return {
-    status: stale ? "stale" : latest.status,
+    status: latest.status,
     lastObservedStatus: latest.status,
     observedAt: latest.observedAt,
     ageSeconds,
-    stale,
+    stale: false,
     latest,
     lastKnownGood,
     mostRecentFailure,
@@ -158,7 +153,6 @@ function coordinateEvidence(
   observations: StoredObservation[],
   kind: CoordinateEvidenceKind,
   now: Date,
-  staleAfterSeconds: number,
 ): EvidenceSummary {
   const records = observations
     .filter(
@@ -166,23 +160,16 @@ function coordinateEvidence(
         observation.coordinateId === coordinate.id && observation.kind === kind,
     )
     .map(({ coordinateId: _coordinateId, kind: _kind, ...record }) => record);
-  return summarizeEvidence(records, now, staleAfterSeconds);
+  return summarizeEventEvidence(records, now);
 }
 
 function deploymentEvidence(
   coordinate: ComponentCoordinate,
   observations: StoredObservation[],
   now: Date,
-  staleAfterSeconds: number,
 ): EvidenceSummary {
   if (!coordinate.deploymentApplicable) return notTrackedEvidence();
-  return coordinateEvidence(
-    coordinate,
-    observations,
-    "deployment",
-    now,
-    staleAfterSeconds,
-  );
+  return coordinateEvidence(coordinate, observations, "deployment", now);
 }
 
 function latestServiceObservation(
@@ -474,28 +461,10 @@ export function aggregateDashboard(
     const dashboardCoordinate: DashboardCoordinate = {
       ...coordinate,
       overall: "unknown",
-      build: coordinateEvidence(
-        coordinate,
-        observations,
-        "build",
-        now,
-        staleAfterSeconds,
-      ),
-      release: coordinateEvidence(
-        coordinate,
-        observations,
-        "release",
-        now,
-        staleAfterSeconds,
-      ),
-      package: coordinateEvidence(
-        coordinate,
-        observations,
-        "package",
-        now,
-        staleAfterSeconds,
-      ),
-      deployment: deploymentEvidence(coordinate, observations, now, staleAfterSeconds),
+      build: coordinateEvidence(coordinate, observations, "build", now),
+      release: coordinateEvidence(coordinate, observations, "release", now),
+      package: coordinateEvidence(coordinate, observations, "package", now),
+      deployment: deploymentEvidence(coordinate, observations, now),
     };
     dashboardCoordinate.overall = coordinateOverall(dashboardCoordinate);
     return dashboardCoordinate;
