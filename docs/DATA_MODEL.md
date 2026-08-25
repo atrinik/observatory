@@ -65,15 +65,19 @@ workflow is never used to synthesize a release or package row.
 
 `service_probes` is a small allowlist of public URLs. The scheduled probe Worker
 records only status, status code, response time, observation time, and a bounded
-error string in `service_observations`. The Classic metaserver has four
-independent listing probes for `/`, `/index.html`, `/index.json`, and
-`/index.xml`. A successful listing response may also contribute a bounded,
-normalized generation and entry count; the body is never stored.
+error string in `service_observations`. The Classic metaserver currently has
+three active listing probes for `/index.html`, `/index.json`, and `/index.xml`.
+Migration `0005_retire_root_listing_probe.sql` marks the historical `/` probe
+inactive without deleting its row or observations. A successful listing
+response may also contribute a bounded, normalized generation and entry count;
+the body is never stored.
 
-The API aggregates those four rows into a `surfaces.listings` payload. Each
-format remains visible, and missing, failed, stale, or cross-format generation /
-summary skew cannot be hidden by another healthy format. `crossFormatSkew` is
-only asserted when at least two bounded parity keys are available.
+The API aggregates those three active rows into a `surfaces.listings` payload.
+Each required format remains visible, and missing, failed, stale, or
+cross-format generation / summary skew cannot be hidden by another healthy
+format. Retained observations for inactive probes do not participate in the
+current aggregate. `crossFormatSkew` is only asserted when at least two
+bounded parity keys are available.
 
 Rendezvous is a separate `surfaces.rendezvous` payload. The current
 `metaserver-worker` contract exposes authenticated, server-ID-specific WebSocket

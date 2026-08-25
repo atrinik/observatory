@@ -68,7 +68,7 @@ export function extractListingMetadata(
   if (new TextEncoder().encode(body).byteLength > MAX_LISTING_BODY_BYTES) {
     return { generation: null, entryCount: null, parityKey: null };
   }
-  const json = format === "json" || format === "root" ? jsonMetadata(body) : null;
+  const json = format === "json" ? jsonMetadata(body) : null;
   const generation = headerGeneration(headers) ?? json?.generation ?? null;
   const entryCount =
     json?.entryCount ??

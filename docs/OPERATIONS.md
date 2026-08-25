@@ -27,10 +27,12 @@ it is excluded from the coordinate overall status rather than being treated as
 a pass or an unknown failure.
 
 The metaserver card has independent `Listings` and `Rendezvous rooms` rows.
-Listings require all four static aliases to agree when bounded generation or
-entry metadata is available. Rendezvous remains `unknown` until an operator-safe
-aggregate source exists; do not infer room health from a reachable WebSocket
-authority and do not enumerate private rooms or server IDs.
+Listings require the three active static aliases to agree when bounded
+generation or entry metadata is available. The historical root probe may still
+have retained observations, but it is inactive and cannot affect current
+listing health. Rendezvous remains `unknown` until an operator-safe aggregate
+source exists; do not infer room health from a reachable WebSocket authority
+and do not enumerate private rooms or server IDs.
 
 ## Reconcile missed events
 

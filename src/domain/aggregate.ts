@@ -41,7 +41,6 @@ const STATUS_RANK: Record<ObservationStatus | "attention" | "stale", number> = {
 };
 
 const LISTING_FORMAT_LABELS: Record<ListingFormat, string> = {
-  root: "/",
   html: "/index.html",
   json: "/index.json",
   xml: "/index.xml",

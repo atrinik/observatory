@@ -52,7 +52,7 @@
       ]
     },
     "listingFormat": {
-      "enum": ["root", "html", "json", "xml"]
+      "enum": ["html", "json", "xml"]
     },
     "coordinate": {
       "type": "object",
@@ -255,7 +255,7 @@
         "requiredFormats": {
           "type": "array",
           "items": { "$ref": "#/$defs/listingFormat" },
-          "minItems": 4,
+          "minItems": 3,
           "uniqueItems": true
         },
         "availableFormats": { "type": "integer", "minimum": 0 },
@@ -266,7 +266,7 @@
         "formats": {
           "type": "array",
           "items": { "$ref": "#/$defs/listingFormatSummary" },
-          "minItems": 4
+          "minItems": 3
         }
       },
       "additionalProperties": false

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  validateClassicListings,
   validateHealthPayload,
   validateStatusPayload,
   verifyProduction,
@@ -18,6 +19,23 @@ const healthyHealth = {
   service: "atrinik-observatory-api",
   schemaVersion: 1,
   readOnlyDashboard: true,
+};
+
+const healthyListings = {
+  id: "listings",
+  status: "passed",
+  requiredFormats: ["html", "json", "xml"],
+  availableFormats: 3,
+};
+
+const statusWithHealthyListings = {
+  ...healthyStatus,
+  services: [
+    {
+      id: "metaserver",
+      surfaces: { listings: healthyListings },
+    },
+  ],
 };
 
 function response(payload, status = 200) {
@@ -45,6 +63,27 @@ describe("production smoke validation", () => {
     ).toThrow("does not match coordinates");
   });
 
+  it("requires the three passing Classic listing formats for production", () => {
+    expect(validateClassicListings(statusWithHealthyListings)).toEqual(healthyListings);
+    expect(() =>
+      validateClassicListings({
+        ...statusWithHealthyListings,
+        services: [
+          {
+            id: "metaserver",
+            surfaces: {
+              listings: {
+                ...healthyListings,
+                requiredFormats: ["root", "html", "json", "xml"],
+                availableFormats: 4,
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrow("unexpected Classic listing format contract");
+  });
+
   it("fails when status cannot read D1 even if health is healthy", async () => {
     const fetchImpl = async (url) =>
       url.pathname.endsWith("/healthz")
@@ -65,6 +104,17 @@ describe("production smoke validation", () => {
     await expect(
       verifyProduction("https://observatory.example", fetchImpl),
     ).rejects.toThrow("unsupported schema version");
+  });
+
+  it("checks the deployed Classic listing surface after health and status", async () => {
+    const fetchImpl = async (url) =>
+      url.pathname.endsWith("/healthz")
+        ? response(healthyHealth)
+        : response(statusWithHealthyListings);
+
+    await expect(
+      verifyProduction("https://observatory.example", fetchImpl),
+    ).resolves.toMatchObject({ statusPayload: statusWithHealthyListings });
   });
 
   it("requires an HTTPS URL without credentials or selectors", async () => {

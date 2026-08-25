@@ -1,5 +1,7 @@
 import { pathToFileURL } from "node:url";
 
+const REQUIRED_CLASSIC_LISTING_FORMATS = ["html", "json", "xml"];
+
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -46,6 +48,31 @@ export function validateStatusPayload(payload) {
   return payload;
 }
 
+export function validateClassicListings(payload) {
+  const metaserver = payload.services.find(
+    (service) => isRecord(service) && service.id === "metaserver",
+  );
+  const listings = metaserver?.surfaces?.listings;
+  if (!isRecord(listings)) {
+    throw new Error("status response is missing the Classic listings surface");
+  }
+  if (
+    JSON.stringify(listings.requiredFormats) !==
+    JSON.stringify(REQUIRED_CLASSIC_LISTING_FORMATS)
+  ) {
+    throw new Error(
+      "status response has an unexpected Classic listing format contract",
+    );
+  }
+  if (listings.availableFormats !== REQUIRED_CLASSIC_LISTING_FORMATS.length) {
+    throw new Error("status response does not report all Classic listing formats");
+  }
+  if (listings.status !== "passed") {
+    throw new Error("status response reports unhealthy Classic listings");
+  }
+  return listings;
+}
+
 async function fetchJson(url, label, fetchImpl) {
   let response;
   try {
@@ -84,6 +111,7 @@ export async function verifyProduction(baseUrl, fetchImpl = fetch) {
   const statusPayload = validateStatusPayload(
     await fetchJson(new URL("/api/status", productionUrl), "/api/status", fetchImpl),
   );
+  validateClassicListings(statusPayload);
   return { healthPayload, statusPayload };
 }
 
