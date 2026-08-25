@@ -21,7 +21,7 @@ export const OBSERVATION_STATUSES = [
 export type ObservationStatus = (typeof OBSERVATION_STATUSES)[number];
 export type DisplayStatus = ObservationStatus | "attention" | "stale" | "not-tracked";
 
-export const LISTING_FORMATS = ["root", "html", "json", "xml"] as const;
+export const LISTING_FORMATS = ["html", "json", "xml"] as const;
 export type ListingFormat = (typeof LISTING_FORMATS)[number];
 
 export const SERVICE_SURFACES = ["service", "listings", "rendezvous"] as const;

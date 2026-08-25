@@ -17,7 +17,7 @@ describe("service probes", () => {
     expect(dashboardService?.url).toBe(CLASSIC_METASERVER_URL);
   });
 
-  it("keeps the four Classic listing aliases independent from rendezvous", () => {
+  it("keeps the three active Classic listing aliases independent from rendezvous", () => {
     expect(
       SERVICE_PROBES.filter((probe) => probe.surface === "listings").map((probe) => [
         probe.format,
@@ -25,10 +25,13 @@ describe("service probes", () => {
       ]),
     ).toEqual([
       ["html", CLASSIC_METASERVER_URL],
-      ["root", "https://classic.meta.atrinik.org/"],
       ["json", "https://classic.meta.atrinik.org/index.json"],
       ["xml", "https://classic.meta.atrinik.org/index.xml"],
     ]);
+
+    expect(
+      SERVICE_PROBES.find((probe) => probe.id === "metaserver:listings:root"),
+    ).toBeUndefined();
 
     expect(
       SERVICE_PROBES.find((probe) => probe.surface === "rendezvous"),

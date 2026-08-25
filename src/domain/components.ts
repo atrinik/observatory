@@ -191,16 +191,6 @@ export const SERVICE_PROBES: ServiceProbe[] = [
     evidenceUrl: "https://classic.meta.atrinik.org/index.html",
   },
   {
-    id: "metaserver:listings:root",
-    name: "Classic listings · root",
-    url: "https://classic.meta.atrinik.org/",
-    stack: "default",
-    staleAfterSeconds: 1800,
-    surface: "listings",
-    format: "root",
-    evidenceUrl: "https://classic.meta.atrinik.org/",
-  },
-  {
     id: "metaserver:listings:json",
     name: "Classic listings · JSON",
     url: "https://classic.meta.atrinik.org/index.json",

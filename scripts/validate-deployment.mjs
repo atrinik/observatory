@@ -9,6 +9,7 @@ const requiredFiles = [
   "deployment/cloudflare-probes.json",
   "migrations/0001_initial.sql",
   "migrations/0003_deployment_applicability.sql",
+  "migrations/0005_retire_root_listing_probe.sql",
   "public/_routes.json",
   "scripts/verify-production.mjs",
 ];
@@ -29,6 +30,10 @@ const productionProbesWrangler = await readFile(
 const migration = await readFile("migrations/0001_initial.sql", "utf8");
 const applicabilityMigration = await readFile(
   "migrations/0003_deployment_applicability.sql",
+  "utf8",
+);
+const listingRetirementMigration = await readFile(
+  "migrations/0005_retire_root_listing_probe.sql",
   "utf8",
 );
 const routes = await readFile("dist/_routes.json", "utf8");
@@ -64,6 +69,11 @@ for (const marker of [
 ]) {
   if (!applicabilityMigration.includes(marker)) {
     throw new Error(`deployment applicability migration is missing ${marker}`);
+  }
+}
+for (const marker of ["ADD COLUMN active", "metaserver:listings:root", "active = 0"]) {
+  if (!listingRetirementMigration.includes(marker)) {
+    throw new Error(`listing retirement migration is missing ${marker}`);
   }
 }
 

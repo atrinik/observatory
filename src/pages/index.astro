@@ -338,7 +338,8 @@ const initialCoordinate =
                         <div>
                           <strong>Listings</strong>
                           <span class="surface-summary" data-surface-summary>
-                            {service.surfaces.listings.availableFormats}/4 formats ·{" "}
+                            {service.surfaces.listings.availableFormats}/
+                            {service.surfaces.listings.requiredFormats.length} formats ·{" "}
                             {service.surfaces.listings.status}
                           </span>
                         </div>

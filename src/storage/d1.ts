@@ -11,6 +11,7 @@ import type {
   ServiceObservation,
   ServiceProbe,
 } from "../domain/types";
+import { LISTING_FORMATS } from "../domain/types";
 import type { StoredObservation } from "../domain/aggregate";
 
 interface CoordinateRow {
@@ -46,7 +47,7 @@ interface ServiceProbeRow {
   stack: "default" | "classic";
   stale_after_seconds: number;
   surface: ServiceSurface;
-  format: ListingFormat | null;
+  format: string | null;
 }
 
 interface ServiceObservationRow {
@@ -57,7 +58,7 @@ interface ServiceObservationRow {
   status_code: number | null;
   response_ms: number | null;
   error: string | null;
-  format: ListingFormat | null;
+  format: string | null;
   generation: string | null;
   entry_count: number | null;
   parity_key: string | null;
@@ -100,6 +101,12 @@ function toStoredObservation(row: ObservationRow): StoredObservation {
   };
 }
 
+function toListingFormat(value: string | null): ListingFormat | null {
+  return value !== null && LISTING_FORMATS.includes(value as ListingFormat)
+    ? (value as ListingFormat)
+    : null;
+}
+
 function toProbe(row: ServiceProbeRow): ServiceProbe {
   const definition = SERVICE_PROBES.find((probe) => probe.id === row.id);
   return {
@@ -109,7 +116,7 @@ function toProbe(row: ServiceProbeRow): ServiceProbe {
     stack: row.stack,
     staleAfterSeconds: row.stale_after_seconds,
     surface: row.surface,
-    format: row.format,
+    format: toListingFormat(row.format),
     evidenceUrl: definition?.evidenceUrl ?? row.url,
   };
 }
@@ -123,7 +130,7 @@ function toServiceObservation(row: ServiceObservationRow): ServiceObservation {
     statusCode: row.status_code,
     responseMs: row.response_ms,
     error: row.error,
-    format: row.format,
+    format: toListingFormat(row.format),
     generation: row.generation,
     entryCount: row.entry_count,
     parityKey: row.parity_key,
@@ -154,7 +161,7 @@ export async function readDashboard(
         .all<ObservationRow>(),
       db
         .prepare(
-          "SELECT id, name, url, stack, stale_after_seconds, surface, format FROM service_probes ORDER BY stack, surface, name",
+          "SELECT id, name, url, stack, stale_after_seconds, surface, format FROM service_probes WHERE active = 1 ORDER BY stack, surface, name",
         )
         .all<ServiceProbeRow>(),
       db
@@ -379,7 +386,7 @@ export async function runServiceProbes(
 ): Promise<number> {
   const result = await db
     .prepare(
-      "SELECT id, name, url, stack, stale_after_seconds, surface, format FROM service_probes ORDER BY id",
+      "SELECT id, name, url, stack, stale_after_seconds, surface, format FROM service_probes WHERE active = 1 ORDER BY id",
     )
     .all<ServiceProbeRow>();
   const probes =

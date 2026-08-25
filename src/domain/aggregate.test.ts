@@ -261,13 +261,43 @@ describe("metaserver surfaces", () => {
       surfaces: {
         listings: {
           status: "passed",
-          availableFormats: 4,
+          availableFormats: 3,
           crossFormatSkew: false,
         },
         rendezvous: {
           status: "unknown",
           safeObservationAvailable: false,
           observationSource: null,
+        },
+      },
+    });
+  });
+
+  it("ignores retained root observations after the root probe is retired", () => {
+    const service = dashboardFor([
+      ...listingProbes.map((probe) => listingObservation(probe.id)),
+      {
+        id: "metaserver:listings:root:historical",
+        probeId: "metaserver:listings:root",
+        status: "failed",
+        observedAt: "2026-08-23T11:59:30.000Z",
+        statusCode: 404,
+        responseMs: 30,
+        error: "404 Not Found",
+        format: null,
+        generation: null,
+        entryCount: null,
+        parityKey: null,
+      },
+    ]).services.find((candidate) => candidate.id === "metaserver");
+
+    expect(service).toMatchObject({
+      surfaces: {
+        listings: {
+          status: "passed",
+          availableFormats: 3,
+          requiredFormats: ["html", "json", "xml"],
+          formats: [{ format: "html" }, { format: "json" }, { format: "xml" }],
         },
       },
     });
