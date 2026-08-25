@@ -1,4 +1,5 @@
 import type { NormalizedObservation, ObservationStatus } from "./types";
+import { trustedMainBuildRef } from "./build-evidence";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -104,8 +105,10 @@ function normalizeWorkflowRun(
   repository: string,
   payload: JsonRecord,
   receivedAt: string,
-): NormalizedObservation {
+): NormalizedObservation | null {
   const run = nested(payload, "workflow_run");
+  const ref = trustedMainBuildRef([run], repository);
+  if (!ref) return null;
   const observation = baseObservation(
     repository,
     "build",
@@ -115,6 +118,7 @@ function normalizeWorkflowRun(
   );
   observation.title =
     firstString(run, ["name", "run_name", "display_title"]) ?? "Workflow run";
+  observation.ref = ref;
   return observation;
 }
 
@@ -122,24 +126,30 @@ function normalizeWorkflowJob(
   repository: string,
   payload: JsonRecord,
   receivedAt: string,
-): NormalizedObservation {
+): NormalizedObservation | null {
   const job = nested(payload, "workflow_job");
-  return baseObservation(
+  const ref = trustedMainBuildRef([job], repository);
+  if (!ref) return null;
+  const observation = baseObservation(
     repository,
     "build",
     job,
     eventDate(job, ["completed_at", "started_at", "created_at"], receivedAt),
     activeStatus(stringValue(job.status), stringValue(job.conclusion)),
   );
+  observation.ref = ref;
+  return observation;
 }
 
 function normalizeCheckRun(
   repository: string,
   payload: JsonRecord,
   receivedAt: string,
-): NormalizedObservation {
+): NormalizedObservation | null {
   const check = nested(payload, "check_run");
   const suite = nested(check, "check_suite");
+  const ref = trustedMainBuildRef([check, suite], repository);
+  if (!ref) return null;
   const observation = baseObservation(
     repository,
     "build",
@@ -151,9 +161,7 @@ function normalizeCheckRun(
     ),
     activeStatus(stringValue(check.status), stringValue(check.conclusion)),
   );
-  observation.ref =
-    firstString(check, ["head_branch", "ref"]) ??
-    firstString(suite, ["head_branch", "ref"]);
+  observation.ref = ref;
   observation.commitSha =
     firstString(check, ["head_sha"]) ?? firstString(suite, ["head_sha"]);
   observation.workflowName =
@@ -246,12 +254,18 @@ export function normalizeGitHubEvent({
   if (!repository) return [];
 
   switch (eventName) {
-    case "workflow_run":
-      return [normalizeWorkflowRun(repository, payload, receivedAt)];
-    case "workflow_job":
-      return [normalizeWorkflowJob(repository, payload, receivedAt)];
-    case "check_run":
-      return [normalizeCheckRun(repository, payload, receivedAt)];
+    case "workflow_run": {
+      const observation = normalizeWorkflowRun(repository, payload, receivedAt);
+      return observation ? [observation] : [];
+    }
+    case "workflow_job": {
+      const observation = normalizeWorkflowJob(repository, payload, receivedAt);
+      return observation ? [observation] : [];
+    }
+    case "check_run": {
+      const observation = normalizeCheckRun(repository, payload, receivedAt);
+      return observation ? [observation] : [];
+    }
     case "release":
       return normalizeRelease(repository, payload, receivedAt);
     case "deployment_status":

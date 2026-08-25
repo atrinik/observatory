@@ -3,6 +3,35 @@ import { normalizeGitHubEvent } from "./events";
 
 const receivedAt = "2026-08-23T12:00:00.000Z";
 
+type BuildEventName = "workflow_run" | "workflow_job" | "check_run";
+
+function buildPayload(
+  eventName: BuildEventName,
+  source: Record<string, unknown>,
+): Record<string, unknown> {
+  const event = {
+    name: "Provider build",
+    status: "completed",
+    conclusion: "failure",
+    head_sha: "build-sha",
+    html_url: "https://github.com/atrinik/observatory/checks/1",
+    ...source,
+  };
+  return {
+    repository: { full_name: "atrinik/observatory" },
+    [eventName]: event,
+  };
+}
+
+function normalizeBuild(eventName: BuildEventName, source: Record<string, unknown>) {
+  return normalizeGitHubEvent({
+    eventName,
+    deliveryId: `${eventName}-delivery`,
+    receivedAt,
+    payload: buildPayload(eventName, source),
+  });
+}
+
 describe("normalizeGitHubEvent", () => {
   it("normalizes a completed workflow without inventing release evidence", () => {
     const [observation] = normalizeGitHubEvent({
@@ -111,5 +140,77 @@ describe("normalizeGitHubEvent", () => {
       commitSha: "fedcba",
       occurredAt: "2026-08-23T11:58:00.000Z",
     });
+  });
+
+  it.each([
+    ["workflow_run", { head_branch: "main" }],
+    ["workflow_job", { head_branch: "refs/heads/main" }],
+    ["check_run", { check_suite: { head_branch: "main" } }],
+  ] as const)(
+    "accepts %s evidence for the canonical main branch",
+    (eventName, source) => {
+      const [observation] = normalizeBuild(eventName, source);
+
+      expect(observation).toMatchObject({ kind: "build" });
+      expect(
+        observation?.ref === "main" || observation?.ref === "refs/heads/main",
+      ).toBe(true);
+    },
+  );
+
+  it.each(["workflow_run", "workflow_job", "check_run"] as const)(
+    "ignores %s evidence from a feature branch",
+    (eventName) => {
+      expect(normalizeBuild(eventName, { head_branch: "feature/status" })).toEqual([]);
+    },
+  );
+
+  it.each(["workflow_run", "workflow_job", "check_run"] as const)(
+    "ignores %s evidence from a pull-request ref",
+    (eventName) => {
+      expect(normalizeBuild(eventName, { ref: "refs/pull/23/head" })).toEqual([]);
+    },
+  );
+
+  it.each(["workflow_run", "workflow_job", "check_run"] as const)(
+    "ignores %s evidence when the branch cannot be established",
+    (eventName) => {
+      expect(normalizeBuild(eventName, {})).toEqual([]);
+    },
+  );
+
+  it.each(["workflow_run", "workflow_job", "check_run"] as const)(
+    "ignores %s evidence when branch representations disagree",
+    (eventName) => {
+      const source =
+        eventName === "check_run"
+          ? { head_branch: "main", check_suite: { head_branch: "feature/status" } }
+          : { head_branch: "main", ref: "feature/status" };
+
+      expect(normalizeBuild(eventName, source)).toEqual([]);
+    },
+  );
+
+  it("ignores a failed provider check associated with a pull request", () => {
+    expect(
+      normalizeBuild("check_run", {
+        name: "Cloudflare Pages",
+        head_branch: "main",
+        pull_requests: [{ url: "https://github.com/atrinik/observatory/pull/23" }],
+        app: { slug: "cloudflare-pages" },
+      }),
+    ).toEqual([]);
+  });
+
+  it("ignores a main-labeled build whose head repository is a fork", () => {
+    expect(
+      normalizeBuild("workflow_run", {
+        head_branch: "main",
+        head_repository: {
+          full_name: "contributor/observatory",
+          fork: true,
+        },
+      }),
+    ).toEqual([]);
   });
 });

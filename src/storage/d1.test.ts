@@ -84,6 +84,10 @@ class FakeStatement {
       const id = String(this.parameters[0]);
       if (this.database.observationIds.has(id)) return { meta: { changes: 0 } };
       this.database.observationIds.add(id);
+      this.database.coordinateObservations.push({
+        id,
+        ref: this.parameters[7],
+      });
       return { meta: { changes: 1 } };
     }
 
@@ -147,6 +151,28 @@ describe("D1 GitHub delivery persistence", () => {
       mapped: 0,
     });
   });
+
+  it("rejects a non-main build even when persistence is called directly", async () => {
+    const database = new FakeDatabase();
+    const nonMainObservation = { ...observation, ref: "feature/status" };
+
+    await expect(
+      recordGitHubDelivery(
+        database as unknown as D1Database,
+        "delivery-feature",
+        "workflow_run",
+        "digest-feature",
+        "2026-08-23T12:00:01.000Z",
+        [nonMainObservation],
+      ),
+    ).resolves.toMatchObject({
+      duplicate: false,
+      conflict: false,
+      inserted: 0,
+      mapped: 0,
+    });
+    expect(database.observationIds.size).toBe(0);
+  });
 });
 
 describe("D1 dashboard reads", () => {
@@ -196,6 +222,61 @@ describe("D1 dashboard reads", () => {
         {
           build: { status: "passed", stale: false, ageSeconds: 86400 },
           overall: "unknown",
+        },
+      ],
+    });
+  });
+
+  it("does not let retained non-main rows change the public build status", async () => {
+    const database = new FakeDatabase();
+    database.coordinateObservations.push(
+      {
+        id: "main-pass",
+        coordinate_id: coordinate.id,
+        kind: "build",
+        status: "passed",
+        observed_at: "2026-08-22T00:00:00.000Z",
+        received_at: "2026-08-22T00:00:01.000Z",
+        ref: "main",
+        commit_sha: "abc123",
+        title: "Validate",
+        source_url: "https://github.com/atrinik/observatory/actions/runs/1",
+        workflow_name: "Validate",
+        release_tag: null,
+        package_url: null,
+        artifact_url: null,
+      },
+      {
+        id: "feature-failure",
+        coordinate_id: coordinate.id,
+        kind: "build",
+        status: "failed",
+        observed_at: "2026-08-23T00:00:00.000Z",
+        received_at: "2026-08-23T00:00:01.000Z",
+        ref: "feature/status",
+        commit_sha: "feature-sha",
+        title: "Validate",
+        source_url: "https://github.com/atrinik/observatory/actions/runs/2",
+        workflow_name: "Validate",
+        release_tag: null,
+        package_url: null,
+        artifact_url: null,
+      },
+    );
+
+    await expect(
+      readDashboard(
+        database as unknown as D1Database,
+        new Date("2026-08-23T00:05:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      coordinates: [
+        {
+          build: {
+            status: "passed",
+            latest: { id: "main-pass" },
+            mostRecentFailure: null,
+          },
         },
       ],
     });

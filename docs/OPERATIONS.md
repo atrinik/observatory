@@ -26,6 +26,12 @@ or package remains unknown. `not-tracked` applies only to the deployment signal;
 it is excluded from the coordinate overall status rather than being treated as
 a pass or an unknown failure.
 
+Build evidence from a feature branch, pull-request ref, fork-associated check,
+or unestablishable/conflicting branch is ignored. Retained legacy rows are not
+deleted, but the dashboard excludes them from current, last-known-good, and
+most-recent-failure build summaries. Release, package, and deployment signals
+remain independent.
+
 The metaserver card has independent `Listings` and `Rendezvous rooms` rows.
 Listings require the three active static aliases to agree when bounded
 generation or entry metadata is available. The historical root probe may still

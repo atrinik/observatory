@@ -58,6 +58,14 @@ human-readable title, and direct source links. The read path orders by event
 timestamp first and receipt timestamp second. An older out-of-order delivery is
 therefore retained as history but cannot replace a newer observation.
 
+Build rows are eligible for the dashboard only when `ref` is exactly `main` or
+`refs/heads/main`. New build events are filtered during normalization and the
+D1 persistence boundary; the aggregate repeats the check for already-retained
+rows. This bounded read-time repair preserves append-only history while keeping
+feature-branch, pull-request, fork, missing-ref, and ambiguous-ref rows out of
+`latest`, `lastKnownGood`, and `mostRecentFailure`. Release, package, and
+deployment rows remain independent of the build branch policy.
+
 Build, release, and package evidence are intentionally independent. A passing
 workflow is never used to synthesize a release or package row.
 

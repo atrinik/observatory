@@ -59,6 +59,43 @@ describe("aggregateDashboard", () => {
     expect(dashboard.summary.attention).toBe(1);
   });
 
+  it("excludes retained non-main build rows from every build summary", () => {
+    const dashboard = aggregateDashboard(
+      [coordinate],
+      [
+        record({
+          id: "main-pass",
+          status: "passed",
+          observedAt: "2026-08-23T10:00:00.000Z",
+          ref: "refs/heads/main",
+        }),
+        record({
+          id: "feature-failure",
+          status: "failed",
+          observedAt: "2026-08-23T12:00:00.000Z",
+          ref: "feature/status",
+        }),
+        record({
+          id: "pull-request-failure",
+          status: "failed",
+          observedAt: "2026-08-23T13:00:00.000Z",
+          ref: "refs/pull/23/head",
+        }),
+      ],
+      [],
+      [],
+      new Date("2026-08-23T13:05:00.000Z"),
+      21600,
+    );
+
+    expect(dashboard.coordinates[0]?.build).toMatchObject({
+      status: "passed",
+      latest: { id: "main-pass" },
+      lastKnownGood: { id: "main-pass" },
+      mostRecentFailure: null,
+    });
+  });
+
   it("lets a newer pass clear an active failure while retaining failure history", () => {
     const dashboard = aggregateDashboard(
       [coordinate],

@@ -13,6 +13,23 @@ The production GitHub webhook subscribes only to evidence-bearing events:
 Unknown event names receive a durable delivery receipt with `ignored` outcome;
 they do not create a healthy record. Unknown conclusions become `unknown`.
 
+## Production build branch boundary
+
+Build evidence is production evidence only when the payload proves that the
+observed commit belongs to the canonical `main` branch. The normalizer accepts
+`main` and `refs/heads/main`; it rejects feature branches, `refs/pull/*` refs,
+missing or conflicting branch representations, fork-associated heads, and any
+check with a non-empty `pull_requests` association. A check is not rescued by a
+`main` ref when its provider metadata says that it belongs to a pull request.
+
+Rejected build events still receive their durable delivery receipt, but they
+create no observation rows. The D1 write path repeats the same main-ref guard
+for callers that bypass normalization. The dashboard also applies the guard at
+read time so legacy non-main rows remain append-only history and cannot affect
+`latest`, `lastKnownGood`, or `mostRecentFailure`. Release, package, and
+deployment events have independent semantics and are not filtered by this
+branch policy.
+
 The webhook must send JSON and the following headers:
 
 - `X-GitHub-Delivery`;

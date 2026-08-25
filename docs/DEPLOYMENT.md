@@ -173,6 +173,15 @@ status response is not a schema-version-1 data-backed document. Confirm that a
 pull request URL uses preview D1 and that the production API has the expected
 `schemaVersion`.
 
+The post-deploy smoke check must also confirm that a signed completion or
+failure from a feature branch, pull-request ref, fork-associated check, or
+ambiguous build payload leaves the affected coordinate's public build summary
+unchanged. Compare the status document before and after the bounded test event;
+the delivery receipt may be recorded as ignored, but no non-main row may change
+`latest`, `lastKnownGood`, or `mostRecentFailure`. Use preview fixtures or an
+operator-controlled signed redelivery for this check and never publish a
+webhook secret or fabricate a production observation.
+
 If migration fails, no production deployment step runs. If the Pages response
 or API smoke check fails, stop the release and promote the last verified Pages
 deployment only after confirming it is compatible with the already-applied
