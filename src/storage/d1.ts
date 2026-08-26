@@ -1,4 +1,5 @@
 import { aggregateDashboard } from "../domain/aggregate";
+import { isPersistableEvidence } from "../domain/build-evidence";
 import { SERVICE_PROBES } from "../domain/components";
 import { extractListingMetadata, MAX_LISTING_BODY_BYTES } from "../domain/metaserver";
 import type {
@@ -193,16 +194,17 @@ export async function recordGitHubDelivery(
   receivedAt: string,
   normalized: NormalizedObservation[],
 ): Promise<DeliveryResult> {
+  const persistable = normalized.filter(isPersistableEvidence);
   const coordinates = await db
     .prepare(
       "SELECT id, repository, component, stack, generation, deployment_applicable FROM component_coordinates WHERE repository = ? ORDER BY stack, component",
     )
-    .bind(normalized[0]?.repository ?? "")
+    .bind(persistable[0]?.repository ?? normalized[0]?.repository ?? "")
     .all<CoordinateRow>();
   const observationStatements: D1PreparedStatement[] = [];
   let sequence = 0;
   for (const coordinate of coordinates.results) {
-    for (const observation of normalized) {
+    for (const observation of persistable) {
       const id = `${deliveryId}:${coordinate.id}:${sequence}`;
       sequence += 1;
       observationStatements.push(
@@ -262,7 +264,7 @@ export async function recordGitHubDelivery(
     duplicate: false,
     conflict: false,
     inserted,
-    mapped: normalized.length > 0 ? coordinates.results.length : 0,
+    mapped: persistable.length > 0 ? coordinates.results.length : 0,
   };
 }
 

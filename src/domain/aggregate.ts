@@ -5,6 +5,7 @@ import {
   SERVICE_PROBES,
 } from "./components";
 import { LISTING_FORMATS } from "./types";
+import { isPersistableEvidence } from "./build-evidence";
 import type {
   ComponentCoordinate,
   CoordinateEvidenceKind,
@@ -156,7 +157,9 @@ function coordinateEvidence(
   const records = observations
     .filter(
       (observation) =>
-        observation.coordinateId === coordinate.id && observation.kind === kind,
+        isPersistableEvidence(observation) &&
+        observation.coordinateId === coordinate.id &&
+        observation.kind === kind,
     )
     .map(({ coordinateId: _coordinateId, kind: _kind, ...record }) => record);
   return summarizeEventEvidence(records, now);
