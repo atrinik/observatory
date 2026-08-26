@@ -280,11 +280,16 @@
         "observedAt",
         "ageSeconds",
         "stale",
+        "freshness",
         "routeStatus",
         "controlsStatus",
         "admissionStatus",
         "observationSource",
         "safeObservationAvailable",
+        "recentAuthenticatedAdmissions",
+        "recentSessions",
+        "canary",
+        "reason",
         "evidenceUrl",
         "error"
       ],
@@ -292,18 +297,115 @@
         "id": { "const": "rendezvous" },
         "name": { "const": "Rendezvous rooms" },
         "status": { "$ref": "#/$defs/displayStatus" },
-        "observedAt": { "const": null },
-        "ageSeconds": { "const": null },
-        "stale": { "const": false },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "stale": { "type": "boolean" },
+        "freshness": { "$ref": "#/$defs/rendezvousFreshness" },
         "routeStatus": { "$ref": "#/$defs/displayStatus" },
         "controlsStatus": { "$ref": "#/$defs/displayStatus" },
         "admissionStatus": { "$ref": "#/$defs/displayStatus" },
-        "observationSource": { "type": ["string", "null"] },
-        "safeObservationAvailable": { "const": false },
+        "observationSource": {
+          "anyOf": [{ "const": "private-service-binding" }, { "type": "null" }]
+        },
+        "safeObservationAvailable": { "type": "boolean" },
+        "recentAuthenticatedAdmissions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "recentSessions": { "$ref": "#/$defs/rendezvousSessions" },
+        "canary": { "$ref": "#/$defs/rendezvousCanary" },
+        "reason": {
+          "anyOf": [{ "$ref": "#/$defs/rendezvousReason" }, { "type": "null" }]
+        },
         "evidenceUrl": { "type": ["string", "null"], "format": "uri" },
-        "error": { "type": "string" }
+        "error": { "type": ["string", "null"], "maxLength": 128 }
       },
       "additionalProperties": false
+    },
+    "rendezvousFreshness": {
+      "type": "object",
+      "required": ["state", "ageSeconds", "maximumAgeSeconds"],
+      "properties": {
+        "state": { "enum": ["fresh", "stale", "no_observation"] },
+        "ageSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "maximumAgeSeconds": { "const": 300 }
+      },
+      "additionalProperties": false
+    },
+    "rendezvousSessions": {
+      "type": "object",
+      "required": ["total", "outcomes"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0, "maximum": 8000000 },
+        "outcomes": {
+          "type": "object",
+          "required": [
+            "completed",
+            "client_disconnected",
+            "session_expired",
+            "protocol_error",
+            "server_unavailable",
+            "server_replaced",
+            "authorization_failed",
+            "internal_error"
+          ],
+          "properties": {
+            "completed": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+            "client_disconnected": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "session_expired": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+            "protocol_error": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+            "server_unavailable": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "server_replaced": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+            "authorization_failed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "internal_error": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "rendezvousCanary": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "authenticatedControl",
+        "recentAdmission",
+        "observedAt"
+      ],
+      "properties": {
+        "type": { "enum": ["none", "route", "end_to_end"] },
+        "route": { "enum": ["not_observed", "reachable", "failed"] },
+        "authenticatedControl": { "enum": ["not_observed", "passed", "failed"] },
+        "recentAdmission": { "enum": ["not_observed", "passed", "failed"] },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "rendezvousReason": {
+      "enum": [
+        "no_observation",
+        "malformed_observation",
+        "stale_source",
+        "canary_failed",
+        "canary_passed",
+        "authenticated_admission",
+        "completed_session",
+        "no_positive_evidence"
+      ]
     },
     "metaserver": {
       "type": "object",

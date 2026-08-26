@@ -36,9 +36,12 @@ The metaserver card has independent `Listings` and `Rendezvous rooms` rows.
 Listings require the three active static aliases to agree when bounded
 generation or entry metadata is available. The historical root probe may still
 have retained observations, but it is inactive and cannot affect current
-listing health. Rendezvous remains `unknown` until an operator-safe aggregate
-source exists; do not infer room health from a reachable WebSocket authority
-and do not enumerate private rooms or server IDs.
+listing health. Rendezvous is read from the authenticated private
+`RendezvousHealth` Service Binding. Treat `passed` as a fresh positive aggregate
+only, `failed` as an explicit canary failure, `stale` as an observation older
+than five minutes, and `unknown` as no safe positive conclusion. Do not infer
+room health from a public WebSocket authority, and do not enumerate private
+rooms, server IDs, connection IDs, candidates, source addresses, or tokens.
 
 ## Reconcile missed events
 
@@ -73,6 +76,14 @@ LIMIT 50;
 SELECT probe_id, format, status, observed_at, generation, entry_count, parity_key
 FROM service_observations
 ORDER BY observed_at DESC
+LIMIT 50;
+
+SELECT id, received_at, source_timestamp, freshness_state, source_status,
+       recent_authenticated_admissions, session_total, canary_type,
+       canary_route, canary_authenticated_control, canary_recent_admission,
+       reason, error
+FROM rendezvous_health_observations
+ORDER BY received_at DESC
 LIMIT 50;
 ```
 

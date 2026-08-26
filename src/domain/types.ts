@@ -27,6 +27,35 @@ export type ListingFormat = (typeof LISTING_FORMATS)[number];
 export const SERVICE_SURFACES = ["service", "listings", "rendezvous"] as const;
 export type ServiceSurface = (typeof SERVICE_SURFACES)[number];
 
+export const RENDEZVOUS_TERMINAL_OUTCOMES = [
+  "completed",
+  "client_disconnected",
+  "session_expired",
+  "protocol_error",
+  "server_unavailable",
+  "server_replaced",
+  "authorization_failed",
+  "internal_error",
+] as const;
+export type RendezvousTerminalOutcome = (typeof RENDEZVOUS_TERMINAL_OUTCOMES)[number];
+export type RendezvousHealthStatus =
+  "healthy" | "failed" | "stale" | "no_usable_observation";
+export type RendezvousHealthFreshnessState = "fresh" | "stale" | "no_observation";
+export type RendezvousHealthReason =
+  | "no_observation"
+  | "malformed_observation"
+  | "stale_source"
+  | "canary_failed"
+  | "canary_passed"
+  | "authenticated_admission"
+  | "completed_session"
+  | "no_positive_evidence";
+export type RendezvousHealthError =
+  | "source_not_configured"
+  | "source_unauthorized"
+  | "source_unavailable"
+  | "malformed_source";
+
 export type Generation = "replacement" | "classic" | "shared";
 
 export interface ComponentCoordinate {
@@ -128,20 +157,68 @@ export interface ListingsSurfaceSummary {
   formats: ListingFormatSummary[];
 }
 
+export interface RendezvousHealthCanary {
+  type: "none" | "route" | "end_to_end";
+  route: "not_observed" | "reachable" | "failed";
+  authenticatedControl: "not_observed" | "passed" | "failed";
+  recentAdmission: "not_observed" | "passed" | "failed";
+  observedAt: number | null;
+}
+
+export interface RendezvousHealthSessions {
+  total: number;
+  outcomes: Record<RendezvousTerminalOutcome, number>;
+}
+
+export interface RendezvousHealthObservation {
+  id: string;
+  receivedAt: string;
+  observationGeneration: number;
+  sourceTimestamp: number | null;
+  windowStartedAt: number | null;
+  windowEndedAt: number | null;
+  freshnessState: RendezvousHealthFreshnessState;
+  sourceStatus: RendezvousHealthStatus | null;
+  recentAuthenticatedAdmissions: number;
+  recentSessions: RendezvousHealthSessions;
+  canary: RendezvousHealthCanary;
+  reason: RendezvousHealthReason | null;
+  error: RendezvousHealthError | null;
+}
+
+export interface RendezvousFreshnessSummary {
+  state: RendezvousHealthFreshnessState;
+  ageSeconds: number | null;
+  maximumAgeSeconds: number;
+}
+
+export interface RendezvousCanarySummary {
+  type: "none" | "route" | "end_to_end";
+  route: "not_observed" | "reachable" | "failed";
+  authenticatedControl: "not_observed" | "passed" | "failed";
+  recentAdmission: "not_observed" | "passed" | "failed";
+  observedAt: string | null;
+}
+
 export interface RendezvousSurfaceSummary {
   id: "rendezvous";
   name: "Rendezvous rooms";
   status: DisplayStatus;
-  observedAt: null;
-  ageSeconds: null;
-  stale: false;
+  observedAt: string | null;
+  ageSeconds: number | null;
+  stale: boolean;
+  freshness: RendezvousFreshnessSummary;
   routeStatus: DisplayStatus;
   controlsStatus: DisplayStatus;
   admissionStatus: DisplayStatus;
   observationSource: string | null;
-  safeObservationAvailable: false;
+  safeObservationAvailable: boolean;
+  recentAuthenticatedAdmissions: number;
+  recentSessions: RendezvousHealthSessions;
+  canary: RendezvousCanarySummary;
+  reason: RendezvousHealthReason | null;
   evidenceUrl: string | null;
-  error: string;
+  error: string | null;
 }
 
 export interface MetaserverServiceSummary {

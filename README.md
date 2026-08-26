@@ -20,9 +20,13 @@ the authority for logs and large artifacts.
 - `POST /api/github/webhook` verifies GitHub's `X-Hub-Signature-256` header and
   appends normalized workflow, check, release, package, and deployment evidence.
 - D1 stores the component map, immutable delivery receipts, append-only
-  observations, and service-probe results.
+  observations, service-probe results, and normalized rendezvous health
+  aggregates.
 - `src/probe-worker.ts` is a small scheduled Worker. Every five minutes it
-  probes the configured public services without reading response bodies.
+  probes the configured public services without reading response bodies and
+  consumes the authenticated, private `RendezvousHealth` Service Binding. Only
+  validated aggregate fields enter D1; the browser never receives the token or
+  a room/server identifier.
 
 The component and stack map follows the wrapper's `components.json` and
 deliberately keeps shared repositories visible in both the replacement and
@@ -67,6 +71,8 @@ npm run deploy:dry-run
 The dashboard has no endpoint for rerunning or cancelling workflows, publishing
 releases, deploying applications, changing packages, or mutating GitHub data.
 The webhook and scheduled probe Worker are ingestion paths, not user controls.
+Rendezvous status is an operator-safe aggregate, not an active-room count or a
+public room endpoint.
 
 ## Cloudflare setup
 
@@ -82,7 +88,8 @@ Follow [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) to:
 3. connect `atrinik/observatory` to the `atrinik-observatory` Pages project with
    all non-production branches as previews;
 4. connect the repository's probe Worker with distinct preview and production
-   bindings; and
+   bindings, including the private rendezvous health Service Binding and its
+   separately provisioned secret; and
 5. install the least-privilege GitHub webhook and smoke-check the public routes.
 
 The source contract is reviewable before any provider mutation:

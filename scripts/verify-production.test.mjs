@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   validateClassicListings,
+  validateClassicRendezvous,
   validateHealthPayload,
   validateStatusPayload,
   verifyProduction,
@@ -28,12 +29,52 @@ const healthyListings = {
   availableFormats: 3,
 };
 
+const healthyRendezvous = {
+  id: "rendezvous",
+  name: "Rendezvous rooms",
+  status: "unknown",
+  observedAt: null,
+  ageSeconds: null,
+  stale: false,
+  freshness: { state: "no_observation", ageSeconds: null, maximumAgeSeconds: 300 },
+  routeStatus: "unknown",
+  controlsStatus: "unknown",
+  admissionStatus: "unknown",
+  observationSource: null,
+  safeObservationAvailable: false,
+  recentAuthenticatedAdmissions: 0,
+  recentSessions: {
+    total: 0,
+    outcomes: {
+      completed: 0,
+      client_disconnected: 0,
+      session_expired: 0,
+      protocol_error: 0,
+      server_unavailable: 0,
+      server_replaced: 0,
+      authorization_failed: 0,
+      internal_error: 0,
+    },
+  },
+  canary: {
+    type: "none",
+    route: "not_observed",
+    authenticatedControl: "not_observed",
+    recentAdmission: "not_observed",
+    observedAt: null,
+  },
+  reason: "no_observation",
+  evidenceUrl:
+    "https://github.com/atrinik/metaserver-worker/blob/main/docs/rendezvous-health.md",
+  error: "No safe rendezvous health observation is available.",
+};
+
 const statusWithHealthyListings = {
   ...healthyStatus,
   services: [
     {
       id: "metaserver",
-      surfaces: { listings: healthyListings },
+      surfaces: { listings: healthyListings, rendezvous: healthyRendezvous },
     },
   ],
 };
@@ -82,6 +123,30 @@ describe("production smoke validation", () => {
         ],
       }),
     ).toThrow("unexpected Classic listing format contract");
+  });
+
+  it("requires the bounded rendezvous health projection and safe source marker", () => {
+    expect(validateClassicRendezvous(statusWithHealthyListings)).toEqual(
+      healthyRendezvous,
+    );
+    expect(() =>
+      validateClassicRendezvous({
+        ...statusWithHealthyListings,
+        services: [
+          {
+            id: "metaserver",
+            surfaces: {
+              listings: healthyListings,
+              rendezvous: {
+                ...healthyRendezvous,
+                safeObservationAvailable: true,
+                observationSource: "public-room-endpoint",
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrow("unsafe rendezvous observation source");
   });
 
   it("fails when status cannot read D1 even if health is healthy", async () => {

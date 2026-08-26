@@ -10,6 +10,7 @@ const requiredFiles = [
   "migrations/0001_initial.sql",
   "migrations/0003_deployment_applicability.sql",
   "migrations/0005_retire_root_listing_probe.sql",
+  "migrations/0006_rendezvous_health_observations.sql",
   "public/_routes.json",
   "scripts/verify-production.mjs",
 ];
@@ -36,8 +37,13 @@ const listingRetirementMigration = await readFile(
   "migrations/0005_retire_root_listing_probe.sql",
   "utf8",
 );
+const rendezvousHealthMigration = await readFile(
+  "migrations/0006_rendezvous_health_observations.sql",
+  "utf8",
+);
 const routes = await readFile("dist/_routes.json", "utf8");
 const pagesContract = JSON.parse(pagesConfig);
+const probesContract = JSON.parse(probesConfig);
 const packageManifest = JSON.parse(await readFile("package.json", "utf8"));
 
 const forbidden = ["CLOUDFLARE_API_TOKEN", "GITHUB_WEBHOOK_SECRET=", "Bearer "];
@@ -76,6 +82,23 @@ for (const marker of ["ADD COLUMN active", "metaserver:listings:root", "active =
     throw new Error(`listing retirement migration is missing ${marker}`);
   }
 }
+for (const marker of [
+  "CREATE TABLE IF NOT EXISTS rendezvous_health_observations",
+  "recent_authenticated_admissions",
+  "session_authorization_failed",
+  "canary_authenticated_control",
+]) {
+  if (!rendezvousHealthMigration.includes(marker)) {
+    throw new Error(`rendezvous health migration is missing ${marker}`);
+  }
+}
+if (
+  /^\s*(server_id|room_id|connection_id|ticket|candidate|credential|source_address)\b/im.test(
+    rendezvousHealthMigration,
+  )
+) {
+  throw new Error("rendezvous health migration contains a private identifier column");
+}
 
 if (!pagesConfig.includes('"noManualDashboardDeployment": true')) {
   throw new Error("Pages contract must reject manual-only deployment");
@@ -91,6 +114,10 @@ for (const marker of [
   '"database_name": "atrinik-observatory-preview"',
   '"OBSERVATORY_ENV": "preview"',
   '"workers_dev": true',
+  '"binding": "RENDEZVOUS_HEALTH"',
+  '"service": "atrinik-metaserver-review-canary"',
+  '"entrypoint": "RendezvousHealth"',
+  '"required": ["RENDEZVOUS_HEALTH_EXPORT_TOKEN"]',
 ]) {
   if (!probesWrangler.includes(marker)) {
     throw new Error(`preview probe config is missing required contract: ${marker}`);
@@ -100,7 +127,8 @@ if (
   probesWrangler.includes('"name": "atrinik-observatory-probes",') ||
   probesWrangler.includes('"database_name": "atrinik-observatory",') ||
   probesWrangler.includes('"OBSERVATORY_ENV": "production"') ||
-  probesWrangler.includes('"env": {')
+  probesWrangler.includes('"env": {') ||
+  probesWrangler.includes('"service": "atrinik-metaserver"')
 ) {
   throw new Error("preview probe config must not contain a production environment");
 }
@@ -109,6 +137,10 @@ for (const marker of [
   '"database_name": "atrinik-observatory"',
   '"OBSERVATORY_ENV": "production"',
   '"workers_dev": false',
+  '"binding": "RENDEZVOUS_HEALTH"',
+  '"service": "atrinik-metaserver"',
+  '"entrypoint": "RendezvousHealth"',
+  '"required": ["RENDEZVOUS_HEALTH_EXPORT_TOKEN"]',
 ]) {
   if (!productionProbesWrangler.includes(marker)) {
     throw new Error(`production probe config is missing required contract: ${marker}`);
@@ -118,6 +150,25 @@ if (
   productionProbesWrangler.includes('"database_name": "atrinik-observatory-preview"')
 ) {
   throw new Error("production probe config must not use the preview database");
+}
+if (
+  productionProbesWrangler.includes('"service": "atrinik-metaserver-review-canary"')
+) {
+  throw new Error("production probe config must not use the review-canary service");
+}
+if (
+  probesContract.rendezvousHealth?.binding !== "RENDEZVOUS_HEALTH" ||
+  probesContract.rendezvousHealth?.entrypoint !== "RendezvousHealth" ||
+  probesContract.rendezvousHealth?.url !==
+    "https://internal.atrinik.invalid/v1/rendezvous-health" ||
+  probesContract.rendezvousHealth?.previewService !==
+    "atrinik-metaserver-review-canary" ||
+  probesContract.rendezvousHealth?.productionService !== "atrinik-metaserver" ||
+  probesContract.rendezvousHealth?.requiredSecret !==
+    "RENDEZVOUS_HEALTH_EXPORT_TOKEN" ||
+  probesContract.rendezvousHealth?.transport !== "private named Service Binding"
+) {
+  throw new Error("probe contract must pin the private rendezvous health binding");
 }
 if (
   !packageManifest.scripts["deploy:dry-run"].includes("-c wrangler.probes.jsonc") ||

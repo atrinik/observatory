@@ -1,9 +1,10 @@
 import type { ComponentCoordinate, ServiceProbe } from "./types";
+import { INTERNAL_RENDEZVOUS_HEALTH_URL } from "./rendezvous-health";
 
 export const METASERVER_LISTING_EVIDENCE_URL =
   "https://github.com/atrinik/metaserver-worker/blob/main/docs/routes.md";
 export const METASERVER_RENDEZVOUS_EVIDENCE_URL =
-  "https://github.com/atrinik/metaserver-worker/blob/main/docs/routes.md";
+  "https://github.com/atrinik/metaserver-worker/blob/main/docs/rendezvous-health.md";
 
 type CoordinateDefinition = Pick<
   ComponentCoordinate,
@@ -213,7 +214,7 @@ export const SERVICE_PROBES: ServiceProbe[] = [
   {
     id: "metaserver:rendezvous",
     name: "Rendezvous rooms",
-    url: "https://rendezvous.meta.atrinik.org/",
+    url: INTERNAL_RENDEZVOUS_HEALTH_URL,
     stack: "default",
     staleAfterSeconds: 1800,
     surface: "rendezvous",

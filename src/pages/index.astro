@@ -45,6 +45,45 @@ function formatSummary(
   return `${status} · ${Math.floor(ageSeconds / 3600)}h ago`;
 }
 
+function rendezvousSurfaceSummary(
+  surface: MetaserverServiceSummary["surfaces"]["rendezvous"],
+) {
+  return (
+    formatSummary(surface.status, surface.observedAt, surface.ageSeconds) +
+    " · " +
+    (surface.safeObservationAvailable ? "safe source" : "no safe source")
+  );
+}
+
+function rendezvousSurfaceObserved(
+  surface: MetaserverServiceSummary["surfaces"]["rendezvous"],
+) {
+  if (!surface.safeObservationAvailable) {
+    return surface.error ?? "No safe rendezvous health observation is available.";
+  }
+  return (
+    formatSummary(surface.status, surface.observedAt, surface.ageSeconds) +
+    " · " +
+    surface.freshness.state +
+    " · route " +
+    surface.routeStatus +
+    " · controls " +
+    surface.controlsStatus +
+    " · admissions " +
+    surface.recentAuthenticatedAdmissions +
+    " · sessions " +
+    surface.recentSessions.total
+  );
+}
+
+function rendezvousSessionOutcomes(
+  surface: MetaserverServiceSummary["surfaces"]["rendezvous"],
+) {
+  return Object.entries(surface.recentSessions.outcomes)
+    .map(([outcome, count]) => outcome.replaceAll("_", " ") + ": " + count)
+    .join(" · ");
+}
+
 const safeInitialStatus = JSON.stringify(dashboard).replaceAll("<", "\\u003c");
 const initialStack = "classic" as "default" | "classic";
 const stackOrder = ["classic", "default"] as const;
@@ -360,8 +399,7 @@ const initialCoordinate =
                         <div>
                           <strong>Rendezvous rooms</strong>
                           <span class="surface-summary" data-surface-summary>
-                            {service.surfaces.rendezvous.status} · no safe aggregate
-                            source
+                            {rendezvousSurfaceSummary(service.surfaces.rendezvous)}
                           </span>
                         </div>
                         <StatusIndicator
@@ -369,7 +407,9 @@ const initialCoordinate =
                           context="service"
                           size="compact"
                         />
-                        <p data-surface-observed>{service.surfaces.rendezvous.error}</p>
+                        <p data-surface-observed>
+                          {rendezvousSurfaceObserved(service.surfaces.rendezvous)}
+                        </p>
                       </div>
                     </div>
                     <details class="surface-details">
@@ -394,11 +434,72 @@ const initialCoordinate =
                         ))}
                       </div>
                       <p class="surface-boundary" data-rendezvous-boundary>
-                        Rendezvous stays Unknown unless a documented operator-safe
-                        source reports route, authenticated-control, and recent
-                        admission signals. No room, server ID, or token is enumerated
-                        here.
+                        Only the authenticated, versioned operator-safe aggregate is
+                        shown. This is not an active-room count, and no room, server ID,
+                        connection ID, candidate, source address, credential, or token
+                        is enumerated here.
                       </p>
+                      <div class="rendezvous-evidence" data-rendezvous-evidence>
+                        <dl class="rendezvous-evidence-grid">
+                          <div>
+                            <dt>Source</dt>
+                            <dd data-rendezvous-source>
+                              {service.surfaces.rendezvous.observationSource ??
+                                "No validated source"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Freshness</dt>
+                            <dd data-rendezvous-freshness>
+                              {service.surfaces.rendezvous.freshness.state} ·{" "}
+                              {service.surfaces.rendezvous.ageSeconds ?? "no age"}
+                              {service.surfaces.rendezvous.ageSeconds !== null
+                                ? "s"
+                                : ""}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Route / controls</dt>
+                            <dd data-rendezvous-route>
+                              {service.surfaces.rendezvous.routeStatus} /{" "}
+                              {service.surfaces.rendezvous.controlsStatus}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Admission</dt>
+                            <dd data-rendezvous-admission>
+                              {service.surfaces.rendezvous.admissionStatus} ·{" "}
+                              {
+                                service.surfaces.rendezvous
+                                  .recentAuthenticatedAdmissions
+                              }
+                              {" recent"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Sessions</dt>
+                            <dd data-rendezvous-sessions>
+                              {service.surfaces.rendezvous.recentSessions.total} total
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Canary</dt>
+                            <dd data-rendezvous-canary>
+                              {service.surfaces.rendezvous.canary.type} ·{" "}
+                              {service.surfaces.rendezvous.canary.route} ·{" "}
+                              {service.surfaces.rendezvous.canary.authenticatedControl}{" "}
+                              · {service.surfaces.rendezvous.canary.recentAdmission}
+                            </dd>
+                          </div>
+                        </dl>
+                        <p class="rendezvous-session-outcomes" data-rendezvous-outcomes>
+                          {rendezvousSessionOutcomes(service.surfaces.rendezvous)}
+                        </p>
+                        <p class="rendezvous-reason" data-rendezvous-reason>
+                          Reason:{" "}
+                          {service.surfaces.rendezvous.reason ?? "not available"}
+                        </p>
+                      </div>
                       {service.surfaces.rendezvous.evidenceUrl ? (
                         <a
                           class="surface-boundary-link"
@@ -581,6 +682,71 @@ const initialCoordinate =
       }
       return "Observed";
     };
+    const rendezvousSignalLabel = (value) =>
+      ["passed", "failed", "stale", "unknown"].includes(value)
+        ? statusLabel(value)
+        : "Unknown";
+    const rendezvousCanarySignalLabel = (value) =>
+      ["not_observed", "reachable", "passed", "failed"].includes(value)
+        ? statusLabel(value)
+        : "Unknown";
+    const rendezvousFreshnessLabel = (value) =>
+      ["fresh", "stale", "no_observation"].includes(value)
+        ? statusLabel(value)
+        : "No observation";
+    const rendezvousCount = (value, maximum = 8000000) =>
+      Number.isSafeInteger(value) && value >= 0 && value <= maximum
+        ? String(value)
+        : "—";
+    const rendezvousCanaryLabel = (value) =>
+      ["none", "route", "end_to_end"].includes(value)
+        ? value.replaceAll("_", " ")
+        : "none";
+    const rendezvousSourceLabel = (surface) =>
+      surface.safeObservationAvailable &&
+      surface.observationSource === "private-service-binding"
+        ? "private service binding"
+        : "No validated source";
+    const rendezvousOutcomeNames = [
+      "completed",
+      "client_disconnected",
+      "session_expired",
+      "protocol_error",
+      "server_unavailable",
+      "server_replaced",
+      "authorization_failed",
+      "internal_error",
+    ];
+    const rendezvousOutcomeText = (surface) => {
+      const outcomes = surface.recentSessions?.outcomes;
+      if (!outcomes || typeof outcomes !== "object") return "No session outcomes";
+      return rendezvousOutcomeNames
+        .map(
+          (outcome) =>
+            outcome.replaceAll("_", " ") +
+            ": " +
+            rendezvousCount(outcomes[outcome], 1000000),
+        )
+        .join(" · ");
+    };
+    const rendezvousObservedText = (surface) => {
+      if (!surface.safeObservationAvailable) {
+        return surface.error ?? "No safe rendezvous health observation is available.";
+      }
+      return (
+        formatObserved(surface.observedAt, surface.ageSeconds, surface.status) +
+        " · " +
+        rendezvousFreshnessLabel(surface.freshness?.state) +
+        " · route " +
+        rendezvousSignalLabel(surface.routeStatus) +
+        " · controls " +
+        rendezvousSignalLabel(surface.controlsStatus) +
+        " · admissions " +
+        rendezvousCount(surface.recentAuthenticatedAdmissions, 1000000) +
+        " · sessions " +
+        rendezvousCount(surface.recentSessions?.total)
+      );
+    };
     const formatEventDate = (value) => {
       if (!value) return "No record";
       const date = new Date(value);
@@ -620,6 +786,64 @@ const initialCoordinate =
         element.removeAttribute("href");
         element.classList.add("muted-link");
       }
+    };
+
+    const updateRendezvousEvidence = (card, surface) => {
+      const evidence = card.querySelector("[data-rendezvous-evidence]");
+      if (!evidence) return;
+      const setText = (selector, value) => {
+        const element = evidence.querySelector(selector);
+        if (element) element.textContent = value;
+      };
+      const age =
+        typeof surface.ageSeconds === "number"
+          ? rendezvousCount(surface.ageSeconds) + "s"
+          : "no age";
+      const sessions = surface.recentSessions ?? {};
+      const canary = surface.canary ?? {};
+      setText("[data-rendezvous-source]", rendezvousSourceLabel(surface));
+      setText(
+        "[data-rendezvous-freshness]",
+        rendezvousFreshnessLabel(surface.freshness?.state) + " · " + age,
+      );
+      setText(
+        "[data-rendezvous-route]",
+        rendezvousSignalLabel(surface.routeStatus) +
+          " / " +
+          rendezvousSignalLabel(surface.controlsStatus),
+      );
+      setText(
+        "[data-rendezvous-admission]",
+        rendezvousSignalLabel(surface.admissionStatus) +
+          " · " +
+          rendezvousCount(surface.recentAuthenticatedAdmissions, 1000000) +
+          " recent",
+      );
+      setText("[data-rendezvous-sessions]", rendezvousCount(sessions.total) + " total");
+      setText(
+        "[data-rendezvous-canary]",
+        rendezvousCanaryLabel(canary.type) +
+          " · " +
+          rendezvousCanarySignalLabel(canary.route) +
+          " · " +
+          rendezvousCanarySignalLabel(canary.authenticatedControl) +
+          " · " +
+          rendezvousCanarySignalLabel(canary.recentAdmission),
+      );
+      setText("[data-rendezvous-outcomes]", rendezvousOutcomeText(surface));
+      const reason = [
+        "no_observation",
+        "malformed_observation",
+        "stale_source",
+        "canary_failed",
+        "canary_passed",
+        "authenticated_admission",
+        "completed_session",
+        "no_positive_evidence",
+      ].includes(surface.reason)
+        ? surface.reason.replaceAll("_", " ")
+        : "not available";
+      setText("[data-rendezvous-reason]", "Reason: " + reason);
     };
 
     const setHistory = (element, record, kind) => {
@@ -750,15 +974,22 @@ const initialCoordinate =
       if (summary) {
         summary.textContent =
           id === "listings"
-            ? `${surface.availableFormats}/${surface.requiredFormats.length} formats · ${statusLabel(surface.status)}${surface.crossFormatSkew ? " · cross-format skew" : ""}`
-            : `${statusLabel(surface.status)} · ${surface.safeObservationAvailable ? "safe source" : "no safe aggregate source"}`;
+            ? surface.availableFormats +
+              "/" +
+              surface.requiredFormats.length +
+              " formats · " +
+              statusLabel(surface.status) +
+              (surface.crossFormatSkew ? " · cross-format skew" : "")
+            : statusLabel(surface.status) +
+              " · " +
+              (surface.safeObservationAvailable ? "safe source" : "no safe source");
       }
       const observed = row.querySelector("[data-surface-observed]");
       if (observed)
         observed.textContent =
           id === "listings"
             ? formatObserved(surface.observedAt, surface.ageSeconds, surface.status)
-            : surface.error;
+            : rendezvousObservedText(surface);
       if (observed && id === "listings" && surface.crossFormatSkew) {
         observed.textContent += " · bounded parity skew detected";
       }
@@ -776,6 +1007,8 @@ const initialCoordinate =
             metric.textContent = `${format.statusCode ?? "—"} · ${format.responseMs ?? "—"}ms · ${format.generation ?? "no generation"}`;
           }
         }
+      } else {
+        updateRendezvousEvidence(card, surface);
       }
     };
 
