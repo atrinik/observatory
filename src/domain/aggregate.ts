@@ -4,6 +4,12 @@ import {
   METASERVER_RENDEZVOUS_EVIDENCE_URL,
   SERVICE_PROBES,
 } from "./components";
+import {
+  emptyRendezvousHealthSessions,
+  normalizeStoredRendezvousHealthObservation,
+  RENDEZVOUS_HEALTH_FRESHNESS_SECONDS,
+  RENDEZVOUS_OBSERVATION_SOURCE,
+} from "./rendezvous-health";
 import { LISTING_FORMATS } from "./types";
 import { isPersistableEvidence } from "./build-evidence";
 import type {
@@ -21,6 +27,7 @@ import type {
   MetaserverServiceSummary,
   ObservationStatus,
   RendezvousSurfaceSummary,
+  RendezvousHealthObservation,
   ServiceObservation,
   ServiceProbe,
   ServiceSummary,
@@ -380,8 +387,58 @@ function listingSurfaceSummary(
   };
 }
 
-function rendezvousSurfaceSummary(probes: ServiceProbe[]): RendezvousSurfaceSummary {
-  const probe = probes.find((candidate) => candidate.surface === "rendezvous");
+function rendezvousCanarySummary(
+  canary: RendezvousHealthObservation["canary"],
+): RendezvousSurfaceSummary["canary"] {
+  return {
+    type: canary.type,
+    route: canary.route,
+    authenticatedControl: canary.authenticatedControl,
+    recentAdmission: canary.recentAdmission,
+    observedAt:
+      canary.observedAt === null
+        ? null
+        : new Date(canary.observedAt * 1_000).toISOString(),
+  };
+}
+
+function rendezvousSignalStatus(
+  signal: "not_observed" | "reachable" | "passed" | "failed",
+  stale: boolean,
+): DisplayStatus {
+  if (signal === "not_observed") return "unknown";
+  if (stale) return "stale";
+  return signal === "reachable" || signal === "passed" ? "passed" : "failed";
+}
+
+function rendezvousErrorMessage(
+  observation: RendezvousHealthObservation,
+  status: DisplayStatus,
+): string | null {
+  if (observation.error === "source_not_configured") {
+    return "Private rendezvous health source is not configured.";
+  }
+  if (observation.error === "source_unauthorized") {
+    return "Private rendezvous health source rejected authorization.";
+  }
+  if (observation.error === "source_unavailable") {
+    return "Private rendezvous health source is unavailable.";
+  }
+  if (observation.error === "malformed_source") {
+    return "Private rendezvous health source returned malformed data.";
+  }
+  if (status === "stale") return "The operator-safe rendezvous source is stale.";
+  if (status === "failed")
+    return "The operator-safe rendezvous canary reported failure.";
+  if (status === "unknown") {
+    return "No positive rendezvous health evidence is available.";
+  }
+  return null;
+}
+
+function emptyRendezvousSurface(
+  probe: ServiceProbe | undefined,
+): RendezvousSurfaceSummary {
   return {
     id: "rendezvous",
     name: "Rendezvous rooms",
@@ -389,27 +446,140 @@ function rendezvousSurfaceSummary(probes: ServiceProbe[]): RendezvousSurfaceSumm
     observedAt: null,
     ageSeconds: null,
     stale: false,
+    freshness: {
+      state: "no_observation",
+      ageSeconds: null,
+      maximumAgeSeconds: RENDEZVOUS_HEALTH_FRESHNESS_SECONDS,
+    },
     routeStatus: "unknown",
     controlsStatus: "unknown",
     admissionStatus: "unknown",
     observationSource: null,
     safeObservationAvailable: false,
+    recentAuthenticatedAdmissions: 0,
+    recentSessions: emptyRendezvousHealthSessions(),
+    canary: {
+      type: "none",
+      route: "not_observed",
+      authenticatedControl: "not_observed",
+      recentAdmission: "not_observed",
+      observedAt: null,
+    },
+    reason: "no_observation",
     evidenceUrl: probe?.evidenceUrl ?? METASERVER_RENDEZVOUS_EVIDENCE_URL,
     error:
-      "No operator-safe aggregate source is configured; private rooms, server IDs, and tokens are not enumerated.",
+      "No safe rendezvous health observation is available; private rooms, server IDs, and tokens are not enumerated.",
+  };
+}
+
+function rendezvousSurfaceSummary(
+  probes: ServiceProbe[],
+  observations: RendezvousHealthObservation[],
+  now: Date,
+): RendezvousSurfaceSummary {
+  const probe = probes.find((candidate) => candidate.surface === "rendezvous");
+  const latest = [...observations].sort(
+    (left, right) => timestampValue(right.receivedAt) - timestampValue(left.receivedAt),
+  )[0];
+  if (!latest) return emptyRendezvousSurface(probe);
+
+  const observation = normalizeStoredRendezvousHealthObservation(
+    latest,
+    Math.floor(now.getTime() / 1_000),
+  );
+  if (!observation) {
+    return {
+      ...emptyRendezvousSurface(probe),
+      reason: "malformed_observation",
+      error: "Stored rendezvous health observation is malformed.",
+    };
+  }
+  if (observation.error !== null) {
+    return {
+      ...emptyRendezvousSurface(probe),
+      reason: null,
+      error: rendezvousErrorMessage(observation, "unknown"),
+    };
+  }
+
+  const ageSeconds =
+    observation.sourceTimestamp === null
+      ? null
+      : Math.max(
+          0,
+          Math.floor((now.getTime() - observation.sourceTimestamp * 1_000) / 1_000),
+        );
+  const stale =
+    observation.sourceStatus === "stale" ||
+    observation.freshnessState === "stale" ||
+    (ageSeconds !== null && ageSeconds > RENDEZVOUS_HEALTH_FRESHNESS_SECONDS);
+  const status: DisplayStatus = stale
+    ? "stale"
+    : observation.sourceStatus === "healthy"
+      ? "passed"
+      : observation.sourceStatus === "failed"
+        ? "failed"
+        : "unknown";
+  const routeStatus = rendezvousSignalStatus(observation.canary.route, stale);
+  const controlsStatus = rendezvousSignalStatus(
+    observation.canary.authenticatedControl,
+    stale,
+  );
+  const admissionSignal =
+    observation.canary.recentAdmission !== "not_observed"
+      ? observation.canary.recentAdmission
+      : observation.recentAuthenticatedAdmissions > 0 ||
+          observation.recentSessions.outcomes.completed > 0
+        ? "passed"
+        : "not_observed";
+  const admissionStatus = rendezvousSignalStatus(admissionSignal, stale);
+  const observedAt =
+    observation.sourceTimestamp === null
+      ? null
+      : new Date(observation.sourceTimestamp * 1_000).toISOString();
+  const freshnessState = stale ? "stale" : observation.freshnessState;
+  const sourceStatus = status;
+
+  return {
+    id: "rendezvous",
+    name: "Rendezvous rooms",
+    status,
+    observedAt,
+    ageSeconds,
+    stale,
+    freshness: {
+      state: freshnessState,
+      ageSeconds,
+      maximumAgeSeconds: RENDEZVOUS_HEALTH_FRESHNESS_SECONDS,
+    },
+    routeStatus,
+    controlsStatus,
+    admissionStatus,
+    observationSource: RENDEZVOUS_OBSERVATION_SOURCE,
+    safeObservationAvailable: true,
+    recentAuthenticatedAdmissions: observation.recentAuthenticatedAdmissions,
+    recentSessions: {
+      total: observation.recentSessions.total,
+      outcomes: { ...observation.recentSessions.outcomes },
+    },
+    canary: rendezvousCanarySummary(observation.canary),
+    reason: observation.reason,
+    evidenceUrl: probe?.evidenceUrl ?? METASERVER_RENDEZVOUS_EVIDENCE_URL,
+    error: rendezvousErrorMessage(observation, sourceStatus),
   };
 }
 
 function metaserverSummary(
   probes: ServiceProbe[],
   observations: ServiceObservation[],
+  rendezvousObservations: RendezvousHealthObservation[],
   now: Date,
 ): MetaserverServiceSummary {
   const base =
     probes.find((probe) => probe.id === "metaserver") ??
     SERVICE_PROBES.find((probe) => probe.id === "metaserver");
   const listings = listingSurfaceSummary(probes, observations, now);
-  const rendezvous = rendezvousSurfaceSummary(probes);
+  const rendezvous = rendezvousSurfaceSummary(probes, rendezvousObservations, now);
   const latest = latestListingFormat(listings.formats);
   const status = worstStatus([listings.status, rendezvous.status]);
 
@@ -429,7 +599,7 @@ function metaserverSummary(
     stale: status === "stale",
     statusCode: latest?.statusCode ?? null,
     responseMs: latest?.responseMs ?? null,
-    error: status === "unknown" ? rendezvous.error : (latest?.error ?? null),
+    error: status === rendezvous.status ? rendezvous.error : (latest?.error ?? null),
     surfaces: { listings, rendezvous },
   };
 }
@@ -437,6 +607,7 @@ function metaserverSummary(
 function aggregateServices(
   probes: ServiceProbe[],
   observations: ServiceObservation[],
+  rendezvousObservations: RendezvousHealthObservation[],
   now: Date,
 ): DashboardService[] {
   const services: DashboardService[] = probes
@@ -448,7 +619,10 @@ function aggregateServices(
   const configured = new Map(probes.map((probe) => [probe.id, probe]));
   const expected = SERVICE_PROBES.filter((probe) => probe.surface !== "service");
   const metaserverProbes = expected.map((probe) => configured.get(probe.id) ?? probe);
-  return [...services, metaserverSummary(metaserverProbes, observations, now)];
+  return [
+    ...services,
+    metaserverSummary(metaserverProbes, observations, rendezvousObservations, now),
+  ];
 }
 
 export function aggregateDashboard(
@@ -458,6 +632,7 @@ export function aggregateDashboard(
   serviceObservations: ServiceObservation[],
   now: Date,
   staleAfterSeconds: number,
+  rendezvousObservations: RendezvousHealthObservation[] = [],
 ): DashboardStatus {
   const dashboardCoordinates = coordinates.map((coordinate) => {
     const dashboardCoordinate: DashboardCoordinate = {
@@ -477,7 +652,12 @@ export function aggregateDashboard(
     generatedAt: now.toISOString(),
     staleAfterSeconds,
     coordinates: dashboardCoordinates,
-    services: aggregateServices(probes, serviceObservations, now),
+    services: aggregateServices(
+      probes,
+      serviceObservations,
+      rendezvousObservations,
+      now,
+    ),
     summary: aggregateSummary(dashboardCoordinates),
   };
 }

@@ -36,6 +36,11 @@ describe("initial stack view markup", () => {
     expect(source).toContain("Deploy");
     expect(source).toContain('data-surface-id="listings"');
     expect(source).toContain('data-surface-id="rendezvous"');
+    expect(source).toContain("data-rendezvous-evidence");
+    expect(source).toContain("data-rendezvous-freshness");
+    expect(source).toContain("data-rendezvous-outcomes");
+    expect(source).toContain("private-service-binding");
+    expect(source).toContain("active-room count");
     expect(source).toContain("data-coordinate-filter");
     expect(source).toContain("data-detail-content");
   });

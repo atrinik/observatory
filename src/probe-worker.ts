@@ -1,4 +1,4 @@
-import { runServiceProbes } from "./storage/d1";
+import { runRendezvousHealthProbe, runServiceProbes } from "./storage/d1";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -16,13 +16,23 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    const count = await runServiceProbes(env.DB, env.PROBE_TIMEOUT_MS);
+    const [count, rendezvousHealth] = await Promise.all([
+      runServiceProbes(env.DB, env.PROBE_TIMEOUT_MS),
+      runRendezvousHealthProbe(
+        env.DB,
+        env.RENDEZVOUS_HEALTH,
+        env.RENDEZVOUS_HEALTH_EXPORT_TOKEN,
+        env.PROBE_TIMEOUT_MS,
+      ),
+    ]);
     console.log(
       JSON.stringify({
         event: "service_probes_completed",
         environment: env.OBSERVATORY_ENV,
         scheduledTime: new Date(controller.scheduledTime).toISOString(),
         count,
+        rendezvousHealth:
+          rendezvousHealth.error ?? rendezvousHealth.status ?? "unknown",
       }),
     );
   },

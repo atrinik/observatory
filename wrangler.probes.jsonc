@@ -14,6 +14,16 @@
       "migrations_dir": "migrations",
     },
   ],
+  "services": [
+    {
+      "binding": "RENDEZVOUS_HEALTH",
+      "service": "atrinik-metaserver-review-canary",
+      "entrypoint": "RendezvousHealth",
+    },
+  ],
+  "secrets": {
+    "required": ["RENDEZVOUS_HEALTH_EXPORT_TOKEN"],
+  },
   "vars": {
     "OBSERVATORY_ENV": "preview",
     "PROBE_TIMEOUT_MS": "5000",

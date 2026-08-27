@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readDashboard, recordGitHubDelivery } from "./d1";
+import { readDashboard, recordGitHubDelivery, runRendezvousHealthProbe } from "./d1";
 import type { NormalizedObservation } from "../domain/types";
 
 const coordinate = {
@@ -30,6 +30,10 @@ class FakeDatabase {
   readonly deliveries = new Map<string, string>();
   readonly observationIds = new Set<string>();
   readonly coordinateObservations: unknown[] = [];
+  readonly serviceProbeRows: unknown[] = [];
+  readonly serviceObservationRows: unknown[] = [];
+  readonly rendezvousHealthRows: unknown[] = [];
+  readonly rendezvousHealthParameters: unknown[][] = [];
 
   readonly prepare = (sql: string) => new FakeStatement(this, sql);
 
@@ -59,10 +63,13 @@ class FakeStatement {
       return { results: this.database.coordinateObservations as T[] };
     }
     if (this.sql.includes("FROM service_probes")) {
-      return { results: [] as T[] };
+      return { results: this.database.serviceProbeRows as T[] };
     }
     if (this.sql.includes("FROM service_observations")) {
-      return { results: [] as T[] };
+      return { results: this.database.serviceObservationRows as T[] };
+    }
+    if (this.sql.includes("FROM rendezvous_health_observations")) {
+      return { results: this.database.rendezvousHealthRows as T[] };
     }
     throw new Error(`unexpected all query: ${this.sql}`);
   }
@@ -95,7 +102,16 @@ class FakeStatement {
       return { meta: { changes: 1 } };
     }
 
+    if (this.sql.startsWith("INSERT OR IGNORE INTO rendezvous_health_observations")) {
+      this.database.rendezvousHealthParameters.push(this.parameters);
+      return { meta: { changes: 1 } };
+    }
+
     throw new Error(`unexpected batch query: ${this.sql}`);
+  }
+
+  async run() {
+    return this.execute();
   }
 }
 
@@ -193,6 +209,67 @@ describe("D1 dashboard reads", () => {
     });
   });
 
+  it("maps a validated rendezvous observation into the public metaserver surface", async () => {
+    const database = new FakeDatabase();
+    database.serviceProbeRows.push({
+      id: "metaserver",
+      name: "Classic listings · HTML",
+      url: "https://classic.meta.atrinik.org/index.html",
+      stack: "default",
+      stale_after_seconds: 1800,
+      surface: "listings",
+      format: "html",
+    });
+    database.rendezvousHealthRows.push({
+      id: "rendezvous-health:observation-1",
+      received_at: "2026-08-23T12:00:01.000Z",
+      observation_generation: 12,
+      source_timestamp: 1787486398,
+      window_started_at: 1787486398,
+      window_ended_at: 1787486698,
+      freshness_state: "fresh",
+      source_status: "healthy",
+      recent_authenticated_admissions: 1,
+      session_total: 1,
+      session_completed: 1,
+      session_client_disconnected: 0,
+      session_expired: 0,
+      session_protocol_error: 0,
+      session_server_unavailable: 0,
+      session_server_replaced: 0,
+      session_authorization_failed: 0,
+      session_internal_error: 0,
+      canary_type: "end_to_end",
+      canary_route: "reachable",
+      canary_authenticated_control: "passed",
+      canary_recent_admission: "passed",
+      canary_observed_at: 1787486399,
+      reason: "canary_passed",
+      error: null,
+    });
+
+    await expect(
+      readDashboard(
+        database as unknown as D1Database,
+        new Date("2026-08-23T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      services: [
+        {
+          id: "metaserver",
+          surfaces: {
+            rendezvous: {
+              status: "passed",
+              safeObservationAvailable: true,
+              observationSource: "private-service-binding",
+              recentAuthenticatedAdmissions: 1,
+            },
+          },
+        },
+      ],
+    });
+  });
+
   it("keeps old event-driven status passed in the public dashboard projection", async () => {
     const database = new FakeDatabase();
     database.coordinateObservations.push({
@@ -225,6 +302,106 @@ describe("D1 dashboard reads", () => {
         },
       ],
     });
+  });
+
+  it("records a fixed error when the private rendezvous source is not configured", async () => {
+    const database = new FakeDatabase();
+
+    await expect(
+      runRendezvousHealthProbe(
+        database as unknown as D1Database,
+        undefined,
+        undefined,
+        undefined,
+        new Date("2026-08-23T12:00:00.000Z"),
+      ),
+    ).resolves.toEqual({
+      stored: true,
+      status: null,
+      error: "source_not_configured",
+    });
+    expect(database.rendezvousHealthParameters).toHaveLength(1);
+    expect(database.rendezvousHealthParameters[0]).not.toContain("room");
+  });
+
+  it("maps unauthorized and malformed private responses to bounded error codes", async () => {
+    const unauthorizedDatabase = new FakeDatabase();
+    const testToken = crypto.randomUUID();
+    let requestedUrl = "";
+    let authorization = "";
+    const unauthorizedBinding = {
+      fetch: async (request: Request) => {
+        requestedUrl = request.url;
+        authorization = request.headers.get("authorization") ?? "";
+        return new Response("private response", { status: 401 });
+      },
+    };
+    await expect(
+      runRendezvousHealthProbe(
+        unauthorizedDatabase as unknown as D1Database,
+        unauthorizedBinding,
+        testToken,
+        undefined,
+        new Date("2026-08-23T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({ status: null, error: "source_unauthorized" });
+    expect(requestedUrl).toBe("https://internal.atrinik.invalid/v1/rendezvous-health");
+    expect(authorization).toBe(`Bearer ${testToken}`);
+    expect(unauthorizedDatabase.rendezvousHealthParameters[0]).not.toContain(
+      "private response",
+    );
+
+    const malformedDatabase = new FakeDatabase();
+    const malformedBinding = {
+      fetch: async () =>
+        new Response("not-json", {
+          headers: { "content-type": "text/plain" },
+        }),
+    };
+    await expect(
+      runRendezvousHealthProbe(
+        malformedDatabase as unknown as D1Database,
+        malformedBinding,
+        testToken,
+        undefined,
+        new Date("2026-08-23T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({ status: null, error: "malformed_source" });
+  });
+
+  it("times out a stalled private binding without persisting source details", async () => {
+    const database = new FakeDatabase();
+    const testToken = crypto.randomUUID();
+    let aborted = false;
+    const stalledBinding = {
+      fetch: (request: Request) =>
+        new Promise<Response>((_resolve, reject) => {
+          request.signal.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        }),
+    };
+
+    await expect(
+      runRendezvousHealthProbe(
+        database as unknown as D1Database,
+        stalledBinding,
+        testToken,
+        "1",
+        new Date("2026-08-23T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      stored: true,
+      status: null,
+      error: "source_unavailable",
+    });
+    expect(aborted).toBe(true);
+    expect(database.rendezvousHealthParameters[0]).not.toContain("aborted");
   });
 
   it("does not let retained non-main rows change the public build status", async () => {

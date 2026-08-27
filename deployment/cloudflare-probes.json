@@ -11,6 +11,16 @@
   "cron": "*/5 * * * *",
   "productionDatabase": "atrinik-observatory",
   "previewDatabase": "atrinik-observatory-preview",
+  "rendezvousHealth": {
+    "binding": "RENDEZVOUS_HEALTH",
+    "entrypoint": "RendezvousHealth",
+    "url": "https://internal.atrinik.invalid/v1/rendezvous-health",
+    "previewService": "atrinik-metaserver-review-canary",
+    "productionService": "atrinik-metaserver",
+    "requiredSecret": "RENDEZVOUS_HEALTH_EXPORT_TOKEN",
+    "transport": "private named Service Binding",
+    "responseBodyPolicy": "persist only validated aggregate fields"
+  },
   "responseBodyPolicy": "never persist probe response bodies",
   "rollback": "wrangler rollback to the last verified Worker version"
 }

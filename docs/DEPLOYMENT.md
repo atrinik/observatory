@@ -52,10 +52,11 @@ capability and marks shared asset coordinates such as `resources` as
 non-applicable. The forward migration
 `0004_metaserver_surfaces.sql` adds the independent listing metadata columns,
 seeds the Classic listing rows, and records the rendezvous surface as a
-non-probed contract entry. The forward migration
+private health contract entry. The forward migration
 `0005_retire_root_listing_probe.sql` adds the active flag and retires the
 historical directory-root row without deleting its retained observations. Apply
-both before deploying the updated Pages Function or scheduled probe Worker;
+`0006_rendezvous_health_observations.sql` after those migrations and before
+deploying the updated Pages Function or scheduled probe Worker;
 they are forward-only and do not rewrite retained observations.
 
 ## Pages project
@@ -100,9 +101,23 @@ selected only by the protected release workflow after the migration gate.
 Review builds must use the preview config and must not run production service
 probes. The production cron is `*/5 * * * *`; configure the same trigger from
 both config files rather than adding a dashboard-only schedule.
-The Worker probes the website and three active static listing aliases only. It
-deliberately skips the rendezvous row because the public route requires a server
-ID and does not provide a safe aggregate observation contract.
+The Worker probes the website and three active static listing aliases, then
+consumes rendezvous health through the private `RendezvousHealth` named Service
+Binding. The preview config binds `RENDEZVOUS_HEALTH` to
+`atrinik-metaserver-review-canary`; the production config binds it to
+`atrinik-metaserver`. Both configs require the separately provisioned
+`RENDEZVOUS_HEALTH_EXPORT_TOKEN` secret. The token is sent only to the exact
+internal contract URL and never reaches Pages, D1 raw payload storage, browser
+code, or logs. The public rendezvous route remains unprobed because it requires
+a server-specific identifier and is not an aggregate health contract.
+
+Provision the probe Worker secret independently for each environment; Wrangler
+prompts for the value, so do not place it in a command, file, or transcript:
+
+```sh
+npx wrangler secret put RENDEZVOUS_HEALTH_EXPORT_TOKEN -c wrangler.probes.jsonc
+npx wrangler secret put RENDEZVOUS_HEALTH_EXPORT_TOKEN -c wrangler.probes.production.jsonc
+```
 
 For a separately authenticated preview deploy, the command is:
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyDashboard } from "./aggregate";
 import { COMPONENT_COORDINATES, SERVICE_PROBES } from "./components";
+import { INTERNAL_RENDEZVOUS_HEALTH_URL } from "./rendezvous-health";
 
 const CLASSIC_METASERVER_URL = "https://classic.meta.atrinik.org/index.html";
 
@@ -38,7 +39,7 @@ describe("service probes", () => {
     ).toMatchObject({
       id: "metaserver:rendezvous",
       format: null,
-      url: "https://rendezvous.meta.atrinik.org/",
+      url: INTERNAL_RENDEZVOUS_HEALTH_URL,
     });
   });
 });

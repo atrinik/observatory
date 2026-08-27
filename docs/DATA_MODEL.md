@@ -87,13 +87,32 @@ format. Retained observations for inactive probes do not participate in the
 current aggregate. `crossFormatSkew` is only asserted when at least two
 bounded parity keys are available.
 
-Rendezvous is a separate `surfaces.rendezvous` payload. The current
-`metaserver-worker` contract exposes authenticated, server-ID-specific WebSocket
-routes and no safe public aggregate for route reachability, authenticated
-controls, or recent admission. Observatory therefore reports the surface as
-`unknown`, with a documented reason and contract link. It does not enumerate
-rooms, server IDs, tokens, or private telemetry. The surface is not silently
-treated as `not-tracked` and cannot be hidden by healthy listings.
+Rendezvous is a separate `surfaces.rendezvous` payload. The scheduled probe
+Worker calls the versioned `RendezvousHealth` entrypoint through a private named
+Service Binding and sends the required token only in that request. The exact
+URL, binding, and response contract are documented by the metaserver-worker
+handoff. A successful response is validated against the exact key set, bounded
+counter limits, five-minute window, freshness claim, canary dimensions, and
+derived status before any field is persisted.
+
+Migration `0006_rendezvous_health_observations.sql` stores append-only normalized
+observations. It contains only timestamps, the bounded authenticated-admission
+counter, the eight bounded session outcome counters, canary dimensions, a
+versioned source status/reason, and fixed source error codes. Raw responses and
+credentials are never stored. Missing, unauthorized, unavailable, oversized,
+malformed, or internally inconsistent source data becomes a safe `unknown`
+projection; it never becomes a pass. A fresh positive authenticated admission,
+completed session, or passing end-to-end canary becomes `passed`; an explicit
+canary failure becomes `failed`; an observation older than 300 seconds becomes
+`stale`.
+
+The surface exposes source freshness and age, route/control/admission signals,
+recent aggregate admission and session evidence, and a contract link. The
+aggregate is not an active-room count. Observatory never enumerates rooms,
+server IDs, connection IDs, candidates, source addresses, credentials, or
+tokens, and it must not infer a room count from listings, `server_presence`, or
+any other unrelated table. The surface is not silently treated as
+`not-tracked` and cannot be hidden by healthy listings.
 
 The API marks a scheduled service or listing probe `stale` after its
 probe-specific threshold. Event-driven coordinate evidence keeps its latest

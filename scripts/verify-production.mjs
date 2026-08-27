@@ -1,6 +1,16 @@
 import { pathToFileURL } from "node:url";
 
 const REQUIRED_CLASSIC_LISTING_FORMATS = ["html", "json", "xml"];
+const REQUIRED_RENDEZVOUS_OUTCOMES = [
+  "completed",
+  "client_disconnected",
+  "session_expired",
+  "protocol_error",
+  "server_unavailable",
+  "server_replaced",
+  "authorization_failed",
+  "internal_error",
+];
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -73,6 +83,119 @@ export function validateClassicListings(payload) {
   return listings;
 }
 
+export function validateClassicRendezvous(payload) {
+  const metaserver = payload.services.find(
+    (service) => isRecord(service) && service.id === "metaserver",
+  );
+  const rendezvous = metaserver?.surfaces?.rendezvous;
+  if (!isRecord(rendezvous)) {
+    throw new Error("status response is missing the rendezvous surface");
+  }
+  if (rendezvous.id !== "rendezvous" || rendezvous.name !== "Rendezvous rooms") {
+    throw new Error("status response has an unexpected rendezvous identity");
+  }
+  if (
+    !["passed", "failed", "unknown", "stale"].includes(rendezvous.status) ||
+    typeof rendezvous.stale !== "boolean" ||
+    (rendezvous.observedAt !== null && typeof rendezvous.observedAt !== "string") ||
+    (rendezvous.ageSeconds !== null &&
+      (!Number.isInteger(rendezvous.ageSeconds) || rendezvous.ageSeconds < 0))
+  ) {
+    throw new Error("status response has invalid rendezvous status metadata");
+  }
+  const freshness = rendezvous.freshness;
+  if (
+    !isRecord(freshness) ||
+    !["fresh", "stale", "no_observation"].includes(freshness.state) ||
+    freshness.maximumAgeSeconds !== 300 ||
+    (freshness.ageSeconds !== null &&
+      (!Number.isInteger(freshness.ageSeconds) || freshness.ageSeconds < 0))
+  ) {
+    throw new Error("status response has invalid rendezvous freshness");
+  }
+  if (
+    !["unknown", "passed", "failed", "stale"].includes(rendezvous.routeStatus) ||
+    !["unknown", "passed", "failed", "stale"].includes(rendezvous.controlsStatus) ||
+    !["unknown", "passed", "failed", "stale"].includes(rendezvous.admissionStatus)
+  ) {
+    throw new Error("status response has invalid rendezvous signal status");
+  }
+  if (
+    typeof rendezvous.safeObservationAvailable !== "boolean" ||
+    (rendezvous.safeObservationAvailable &&
+      rendezvous.observationSource !== "private-service-binding") ||
+    (!rendezvous.safeObservationAvailable && rendezvous.observationSource !== null)
+  ) {
+    throw new Error("status response has an unsafe rendezvous observation source");
+  }
+  if (
+    !Number.isInteger(rendezvous.recentAuthenticatedAdmissions) ||
+    rendezvous.recentAuthenticatedAdmissions < 0 ||
+    rendezvous.recentAuthenticatedAdmissions > 1000000
+  ) {
+    throw new Error("status response has invalid rendezvous admission evidence");
+  }
+  const sessions = rendezvous.recentSessions;
+  if (
+    !isRecord(sessions) ||
+    !Number.isInteger(sessions.total) ||
+    sessions.total < 0 ||
+    sessions.total > 8000000 ||
+    !isRecord(sessions.outcomes) ||
+    Object.keys(sessions.outcomes).length !== REQUIRED_RENDEZVOUS_OUTCOMES.length ||
+    REQUIRED_RENDEZVOUS_OUTCOMES.some(
+      (outcome) =>
+        !Number.isInteger(sessions.outcomes[outcome]) ||
+        sessions.outcomes[outcome] < 0 ||
+        sessions.outcomes[outcome] > 1000000,
+    ) ||
+    REQUIRED_RENDEZVOUS_OUTCOMES.some((outcome) => !(outcome in sessions.outcomes)) ||
+    sessions.total !==
+      REQUIRED_RENDEZVOUS_OUTCOMES.reduce(
+        (total, outcome) => total + sessions.outcomes[outcome],
+        0,
+      )
+  ) {
+    throw new Error("status response has invalid rendezvous session evidence");
+  }
+  const canary = rendezvous.canary;
+  if (
+    !isRecord(canary) ||
+    !["none", "route", "end_to_end"].includes(canary.type) ||
+    !["not_observed", "reachable", "failed"].includes(canary.route) ||
+    !["not_observed", "passed", "failed"].includes(canary.authenticatedControl) ||
+    !["not_observed", "passed", "failed"].includes(canary.recentAdmission) ||
+    (canary.observedAt !== null && typeof canary.observedAt !== "string")
+  ) {
+    throw new Error("status response has invalid rendezvous canary evidence");
+  }
+  if (
+    rendezvous.reason !== null &&
+    ![
+      "no_observation",
+      "malformed_observation",
+      "stale_source",
+      "canary_failed",
+      "canary_passed",
+      "authenticated_admission",
+      "completed_session",
+      "no_positive_evidence",
+    ].includes(rendezvous.reason)
+  ) {
+    throw new Error("status response has an invalid rendezvous reason");
+  }
+  if (typeof rendezvous.error !== "string" && rendezvous.error !== null) {
+    throw new Error("status response has an invalid rendezvous error");
+  }
+  if (
+    typeof rendezvous.evidenceUrl !== "string" ||
+    !rendezvous.evidenceUrl.includes("rendezvous-health.md")
+  ) {
+    throw new Error("status response has an invalid rendezvous evidence link");
+  }
+  return rendezvous;
+}
+
 async function fetchJson(url, label, fetchImpl) {
   let response;
   try {
@@ -112,6 +235,7 @@ export async function verifyProduction(baseUrl, fetchImpl = fetch) {
     await fetchJson(new URL("/api/status", productionUrl), "/api/status", fetchImpl),
   );
   validateClassicListings(statusPayload);
+  validateClassicRendezvous(statusPayload);
   return { healthPayload, statusPayload };
 }
 
