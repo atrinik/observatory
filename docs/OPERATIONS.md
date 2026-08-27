@@ -42,6 +42,11 @@ only, `failed` as an explicit canary failure, `stale` as an observation older
 than five minutes, and `unknown` as no safe positive conclusion. Do not infer
 room health from a public WebSocket authority, and do not enumerate private
 rooms, server IDs, connection IDs, candidates, source addresses, or tokens.
+The scheduled probe records only bounded source diagnostics: missing
+configuration, authorization rejection, unavailability, invalid response
+headers, or invalid JSON/UTF-8/schema payload. The historical
+`malformed_source` code remains readable for compatibility, but new header and
+payload failures are kept distinct without retaining the private response body.
 
 ## Reconcile missed events
 

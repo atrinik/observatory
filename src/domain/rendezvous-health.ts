@@ -141,6 +141,15 @@ function isHealthReason(value: unknown): value is RendezvousHealthReason {
   );
 }
 
+type EmptyObservationReason = Extract<
+  RendezvousHealthReason,
+  "no_observation" | "malformed_observation"
+>;
+
+function isEmptyObservationReason(value: unknown): value is EmptyObservationReason {
+  return value === "no_observation" || value === "malformed_observation";
+}
+
 function isFreshnessState(value: unknown): value is RendezvousHealthFreshnessState {
   return value === "fresh" || value === "stale" || value === "no_observation";
 }
@@ -368,6 +377,7 @@ export function normalizeRendezvousHealthPayload(
     const freshness = value.freshness;
     const sessions = normalizeSessions(value.recent_sessions);
     const canary = normalizeCanary(value.canary);
+    const reason = value.reason;
     if (
       value.observation_generation !== 0 ||
       !isRecord(window) ||
@@ -388,7 +398,7 @@ export function normalizeRendezvousHealthPayload(
       canary === null ||
       canary.type !== "none" ||
       canary.observedAt !== null ||
-      value.reason !== "no_observation"
+      !isEmptyObservationReason(reason)
     ) {
       return null;
     }
@@ -403,7 +413,7 @@ export function normalizeRendezvousHealthPayload(
       recentAuthenticatedAdmissions: 0,
       recentSessions: sessions,
       canary,
-      reason: "no_observation",
+      reason,
     };
   }
 
@@ -574,6 +584,8 @@ export function normalizeStoredRendezvousHealthObservation(
       error !== "source_not_configured" &&
       error !== "source_unauthorized" &&
       error !== "source_unavailable" &&
+      error !== "source_invalid_headers" &&
+      error !== "source_invalid_payload" &&
       error !== "malformed_source")
   ) {
     return null;
@@ -636,7 +648,7 @@ export function normalizeStoredRendezvousHealthObservation(
   if (sourceTimestamp === null) {
     return sourceStatus === "no_usable_observation" &&
       freshnessState === "no_observation" &&
-      reason === "no_observation" &&
+      isEmptyObservationReason(reason) &&
       windowStartedAt === null &&
       windowEndedAt === null &&
       recentAuthenticatedAdmissions === 0 &&

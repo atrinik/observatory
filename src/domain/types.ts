@@ -54,6 +54,8 @@ export type RendezvousHealthError =
   | "source_not_configured"
   | "source_unauthorized"
   | "source_unavailable"
+  | "source_invalid_headers"
+  | "source_invalid_payload"
   | "malformed_source";
 
 export type Generation = "replacement" | "classic" | "shared";

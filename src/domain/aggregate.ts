@@ -424,6 +424,12 @@ function rendezvousErrorMessage(
   if (observation.error === "source_unavailable") {
     return "Private rendezvous health source is unavailable.";
   }
+  if (observation.error === "source_invalid_headers") {
+    return "Private rendezvous health source returned invalid response headers.";
+  }
+  if (observation.error === "source_invalid_payload") {
+    return "Private rendezvous health source returned an invalid payload.";
+  }
   if (observation.error === "malformed_source") {
     return "Private rendezvous health source returned malformed data.";
   }

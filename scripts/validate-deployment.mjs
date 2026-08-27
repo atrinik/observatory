@@ -11,6 +11,7 @@ const requiredFiles = [
   "migrations/0003_deployment_applicability.sql",
   "migrations/0005_retire_root_listing_probe.sql",
   "migrations/0006_rendezvous_health_observations.sql",
+  "migrations/0007_rendezvous_health_fallback_contract.sql",
   "public/_routes.json",
   "scripts/verify-production.mjs",
 ];
@@ -41,6 +42,10 @@ const rendezvousHealthMigration = await readFile(
   "migrations/0006_rendezvous_health_observations.sql",
   "utf8",
 );
+const rendezvousHealthFallbackMigration = await readFile(
+  "migrations/0007_rendezvous_health_fallback_contract.sql",
+  "utf8",
+);
 const routes = await readFile("dist/_routes.json", "utf8");
 const pagesContract = JSON.parse(pagesConfig);
 const probesContract = JSON.parse(probesConfig);
@@ -67,6 +72,17 @@ for (const marker of [
   "service_observations",
 ]) {
   if (!migration.includes(marker)) throw new Error(`migration is missing ${marker}`);
+}
+for (const marker of [
+  "RENAME TO rendezvous_health_observations_0006",
+  "source_invalid_headers",
+  "source_invalid_payload",
+  "reason IN ('no_observation', 'malformed_observation')",
+  "INSERT INTO rendezvous_health_observations",
+]) {
+  if (!rendezvousHealthFallbackMigration.includes(marker)) {
+    throw new Error(`rendezvous health fallback migration is missing ${marker}`);
+  }
 }
 for (const marker of [
   "deployment_applicable",

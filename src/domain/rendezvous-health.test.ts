@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 import {
   normalizeRendezvousHealthPayload,
@@ -7,6 +9,15 @@ import {
 } from "./rendezvous-health";
 
 const now = 1_777_060_802;
+const malformedObservationFixture = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../test/fixtures/rendezvous-health-v1-malformed-observation.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as unknown;
 
 const payload = {
   schema: "rendezvous-health-v1",
@@ -204,6 +215,18 @@ describe("rendezvous health contract normalization", () => {
       freshnessState: "no_observation",
       sourceStatus: "no_usable_observation",
       reason: "no_observation",
+    });
+  });
+
+  it("accepts the producer malformed-observation fallback as unknown", () => {
+    expect(
+      normalizeRendezvousHealthPayload(malformedObservationFixture, now),
+    ).toMatchObject({
+      observationGeneration: 0,
+      sourceTimestamp: null,
+      freshnessState: "no_observation",
+      sourceStatus: "no_usable_observation",
+      reason: "malformed_observation",
     });
   });
 

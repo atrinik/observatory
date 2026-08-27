@@ -56,8 +56,13 @@ private health contract entry. The forward migration
 `0005_retire_root_listing_probe.sql` adds the active flag and retires the
 historical directory-root row without deleting its retained observations. Apply
 `0006_rendezvous_health_observations.sql` after those migrations and before
-deploying the updated Pages Function or scheduled probe Worker;
-they are forward-only and do not rewrite retained observations.
+deploying the updated Pages Function or scheduled probe Worker. Apply
+`0007_rendezvous_health_fallback_contract.sql` immediately after it when
+enabling the malformed-observation fallback or split source diagnostics. The
+forward migration copies every retained row into the broadened constrained
+table, recreates its timestamp index, and removes only the temporary predecessor
+table after the copy succeeds; it does not discard observations. These
+migrations are forward-only and must be applied in order.
 
 ## Pages project
 
