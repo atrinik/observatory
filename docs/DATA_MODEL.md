@@ -87,13 +87,15 @@ format. Retained observations for inactive probes do not participate in the
 current aggregate. `crossFormatSkew` is only asserted when at least two
 bounded parity keys are available.
 
-Rendezvous is a separate `surfaces.rendezvous` payload. The scheduled probe
-Worker calls the versioned `RendezvousHealth` entrypoint through a private named
-Service Binding and sends the required token only in that request. The exact
-URL, binding, and response contract are documented by the metaserver-worker
-handoff. A successful response is validated against the exact key set, bounded
-counter limits, five-minute window, freshness claim, canary dimensions, and
-derived status before any field is persisted.
+Rendezvous is a separate `surfaces.rendezvous` payload. The production
+scheduled probe Worker calls the versioned `RendezvousHealth` entrypoint through
+a private named Service Binding and sends the required token only in that
+request. Preview and local probe configurations intentionally omit that private
+source; they must project rendezvous as `unknown` rather than depend on a
+review canary. The exact URL, binding, and response contract are documented by
+the metaserver-worker handoff. A successful response is validated against the
+exact key set, bounded counter limits, five-minute window, freshness claim,
+canary dimensions, and derived status before any field is persisted.
 
 Migration `0006_rendezvous_health_observations.sql` stores append-only normalized
 observations. It contains only timestamps, the bounded authenticated-admission

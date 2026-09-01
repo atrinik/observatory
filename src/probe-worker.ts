@@ -1,7 +1,16 @@
-import { runRendezvousHealthProbe, runServiceProbes } from "./storage/d1";
+import {
+  runRendezvousHealthProbe,
+  runServiceProbes,
+  type RendezvousHealthBinding,
+} from "./storage/d1";
+
+type ProbeEnv = Env & {
+  RENDEZVOUS_HEALTH?: RendezvousHealthBinding;
+  RENDEZVOUS_HEALTH_EXPORT_TOKEN?: string;
+};
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: ProbeEnv): Promise<Response> {
     if (request.method !== "GET") {
       return new Response("Method not allowed", {
         status: 405,
@@ -15,7 +24,7 @@ export default {
     });
   },
 
-  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: ProbeEnv): Promise<void> {
     const [count, rendezvousHealth] = await Promise.all([
       runServiceProbes(env.DB, env.PROBE_TIMEOUT_MS),
       runRendezvousHealthProbe(
@@ -36,4 +45,4 @@ export default {
       }),
     );
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<ProbeEnv>;

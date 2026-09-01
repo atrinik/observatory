@@ -36,12 +36,14 @@ The metaserver card has independent `Listings` and `Rendezvous rooms` rows.
 Listings require the three active static aliases to agree when bounded
 generation or entry metadata is available. The historical root probe may still
 have retained observations, but it is inactive and cannot affect current
-listing health. Rendezvous is read from the authenticated private
-`RendezvousHealth` Service Binding. Treat `passed` as a fresh positive aggregate
-only, `failed` as an explicit canary failure, `stale` as an observation older
-than five minutes, and `unknown` as no safe positive conclusion. Do not infer
-room health from a public WebSocket authority, and do not enumerate private
-rooms, server IDs, connection IDs, candidates, source addresses, or tokens.
+listing health. In production, rendezvous is read from the authenticated
+private `RendezvousHealth` Service Binding. Treat `passed` as a fresh positive
+aggregate only, `failed` as an explicit source-reported failure, `stale` as an
+observation older than five minutes, and `unknown` as no safe positive
+conclusion. Preview and local runs have no private source and therefore remain
+`unknown`. Do not infer room health from a public WebSocket authority, and do
+not enumerate private rooms, server IDs, connection IDs, candidates, source
+addresses, or tokens.
 
 ## Reconcile missed events
 

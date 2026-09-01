@@ -8,6 +8,11 @@
   "productionConfig": "wrangler.probes.production.jsonc",
   "productionEnvironment": "production",
   "previewEnvironment": "preview",
+  "workersBuilds": {
+    "nonProductionBranches": false,
+    "productionBranch": false,
+    "deploymentOwner": "github-actions"
+  },
   "cron": "*/5 * * * *",
   "productionDatabase": "atrinik-observatory",
   "previewDatabase": "atrinik-observatory-preview",
@@ -15,7 +20,6 @@
     "binding": "RENDEZVOUS_HEALTH",
     "entrypoint": "RendezvousHealth",
     "url": "https://internal.atrinik.invalid/v1/rendezvous-health",
-    "previewService": "atrinik-metaserver-review-canary",
     "productionService": "atrinik-metaserver",
     "requiredSecret": "RENDEZVOUS_HEALTH_EXPORT_TOKEN",
     "transport": "private named Service Binding",
