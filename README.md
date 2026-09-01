@@ -22,11 +22,12 @@ the authority for logs and large artifacts.
 - D1 stores the component map, immutable delivery receipts, append-only
   observations, service-probe results, and normalized rendezvous health
   aggregates.
-- `src/probe-worker.ts` is a small scheduled Worker. Every five minutes it
-  probes the configured public services without reading response bodies and
-  consumes the authenticated, private `RendezvousHealth` Service Binding. Only
-  validated aggregate fields enter D1; the browser never receives the token or
-  a room/server identifier.
+- `src/probe-worker.ts` is a small scheduled production Worker. Every five
+  minutes it probes the configured public services without reading response
+  bodies and consumes the authenticated, private `RendezvousHealth` Service
+  Binding. The preview/local configuration has no private source and remains
+  `unknown` for rendezvous. Only validated aggregate fields enter D1; the
+  browser never receives the token or a room/server identifier.
 
 The component and stack map follows the wrapper's `components.json` and
 deliberately keeps shared repositories visible in both the replacement and
@@ -87,9 +88,9 @@ Follow [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) to:
 2. apply the explicit migration to each database;
 3. connect `atrinik/observatory` to the `atrinik-observatory` Pages project with
    all non-production branches as previews;
-4. connect the repository's probe Worker with distinct preview and production
-   bindings, including the private rendezvous health Service Binding and its
-   separately provisioned secret; and
+4. deploy the production probe Worker from the protected GitHub Actions
+   workflow with its private rendezvous health Service Binding and separately
+   provisioned secret; and
 5. install the least-privilege GitHub webhook and smoke-check the public routes.
 
 The source contract is reviewable before any provider mutation:
