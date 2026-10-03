@@ -58,8 +58,20 @@ Useful checks are:
 npm run format:check
 npm run typecheck
 npm test
+node --test test-node/audit-*.node.mjs
 npm run deploy:dry-run
 ```
+
+Pull requests and pushes to `main` compare complete npm audit reports for the
+exact baseline and tested revision. Existing advisory/package findings emit a
+warning, resolved findings pass, and any new finding or severity increase at
+any severity fails validation. Each revision is installed from its committed
+manifest and lockfile in a separate temporary directory with package scripts
+disabled. A temporary lock is hydrated only to inventory installed bundled
+dependencies, and validation rejects changes to locked inputs or incomplete
+bundle records. Install failures, audit service failures, and malformed or
+incomplete reports fail closed. The comparison uses advisory and affected
+package identity without an allowlist, version gate, or persisted snapshot.
 
 ## API surface
 

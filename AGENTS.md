@@ -33,6 +33,18 @@ npm run build
 npm run deploy:dry-run
 ```
 
+CI compares fresh, complete npm audit reports for the event's exact baseline
+and tested revision before repository lifecycle scripts run. Any new
+advisory/affected-package pair or severity increase fails at every severity;
+existing findings warn and fixes pass. Installation, audit, revision, or report
+errors fail closed. Keep the gate dynamic: do not add advisory allowlists,
+known-good version gates, dependency pins, or persisted audit snapshots. Run
+its Node built-in fixtures with:
+
+```sh
+node --test test-node/audit-*.node.mjs
+```
+
 When changing a migration, also apply it to a local D1 database and test a
 signed webhook fixture. When changing Cloudflare configuration, validate both
 the Pages and probe Worker environments and update `docs/DEPLOYMENT.md`.
