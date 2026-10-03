@@ -17,7 +17,7 @@
     "format:check": "prettier --check .",
     "types:generate": "wrangler types pages-configuration.d.ts -c wrangler.jsonc && wrangler types probe-configuration.d.ts -c wrangler.probes.jsonc",
     "types:check": "wrangler types pages-configuration.d.ts -c wrangler.jsonc --check && wrangler types probe-configuration.d.ts -c wrangler.probes.jsonc --check",
-    "typecheck": "astro check && node node_modules/@typescript/native/bin/tsc --noEmit",
+    "typecheck": "astro check && tsc --noEmit",
     "test": "vitest run",
     "check": "npm run format:check && npm run types:generate && npm run typecheck && npm test",
     "build:check": "npm run check && npm run build",
@@ -39,11 +39,10 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@types/node": "^26.2.0",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "astro": "^7.2.0",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10",
     "wrangler": "^4.123.0"
   }

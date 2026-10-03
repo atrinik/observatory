@@ -52,13 +52,6 @@ npm run pages:dev
 uses a local D1 database by default. Use a local `.dev.vars` file for
 `GITHUB_WEBHOOK_SECRET` when testing a signed webhook; never commit that file.
 
-Type checking uses Microsoft's [supported side-by-side TypeScript setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
-The `typescript` alias supplies the TypeScript 6 API required by Astro's checker;
-`@typescript/native` supplies TypeScript 7 for the remaining project check.
-`npm run typecheck` runs both and names the native executable explicitly so it
-does not depend on npm's `.bin` selection. Keep both aliases until Astro supports
-the native compiler API.
-
 Useful checks are:
 
 ```sh
