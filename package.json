@@ -32,19 +32,18 @@
     "verify:production": "node scripts/verify-production.mjs"
   },
   "allowScripts": {
-    "esbuild@0.28.2": true,
-    "esbuild@0.28.1": true,
+    "esbuild": true,
     "fsevents": false,
-    "workerd@1.20260811.1": true
+    "workerd": true
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10",
-    "@types/node": "26.4.0",
-    "astro": "7.2.0",
-    "prettier": "3.9.6",
-    "prettier-plugin-astro": "0.14.1",
-    "typescript": "6.0.3",
-    "vitest": "4.1.10",
-    "wrangler": "4.123.0"
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.4.0",
+    "astro": "^7.2.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.123.0"
   }
 }
