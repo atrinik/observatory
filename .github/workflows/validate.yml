@@ -29,6 +29,8 @@ jobs:
       - name: Compare dependency audit delta
         run: node scripts/audit-delta.mjs
       - run: npm ci
+      - name: Apply migrations to isolated local D1
+        run: npm run db:migrate:local
       - run: npm run check
       - run: npm run build
       - run: npm run deploy:dry-run

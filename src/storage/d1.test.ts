@@ -1,6 +1,18 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 import { readDashboard, recordGitHubDelivery, runRendezvousHealthProbe } from "./d1";
 import type { NormalizedObservation } from "../domain/types";
+
+const malformedObservationFixture = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../test/fixtures/rendezvous-health-v1-malformed-observation.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as Record<string, unknown>;
 
 const coordinate = {
   id: "default:observatory",
@@ -324,7 +336,7 @@ describe("D1 dashboard reads", () => {
     expect(database.rendezvousHealthParameters[0]).not.toContain("room");
   });
 
-  it("maps unauthorized and malformed private responses to bounded error codes", async () => {
+  it("maps unauthorized and invalid private responses to bounded error codes", async () => {
     const unauthorizedDatabase = new FakeDatabase();
     const testToken = crypto.randomUUID();
     let requestedUrl = "";
@@ -366,7 +378,55 @@ describe("D1 dashboard reads", () => {
         undefined,
         new Date("2026-08-23T12:00:00.000Z"),
       ),
-    ).resolves.toMatchObject({ status: null, error: "malformed_source" });
+    ).resolves.toMatchObject({ status: null, error: "source_invalid_headers" });
+
+    for (const body of [
+      "not-json",
+      JSON.stringify({ ...malformedObservationFixture, schema: "wrong-v1" }),
+    ]) {
+      const invalidPayloadDatabase = new FakeDatabase();
+      const invalidPayloadBinding = {
+        fetch: async () =>
+          new Response(body, {
+            headers: { "content-type": "application/json; charset=utf-8" },
+          }),
+      };
+      await expect(
+        runRendezvousHealthProbe(
+          invalidPayloadDatabase as unknown as D1Database,
+          invalidPayloadBinding,
+          testToken,
+          undefined,
+          new Date("2026-08-23T12:00:00.000Z"),
+        ),
+      ).resolves.toMatchObject({ status: null, error: "source_invalid_payload" });
+      expect(invalidPayloadDatabase.rendezvousHealthParameters[0]).not.toContain(body);
+    }
+
+    const fallbackDatabase = new FakeDatabase();
+    const fallbackBinding = {
+      fetch: async () =>
+        new Response(JSON.stringify(malformedObservationFixture), {
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+    };
+    await expect(
+      runRendezvousHealthProbe(
+        fallbackDatabase as unknown as D1Database,
+        fallbackBinding,
+        testToken,
+        undefined,
+        new Date("2026-08-23T12:00:00.000Z"),
+      ),
+    ).resolves.toEqual({
+      stored: true,
+      status: "no_usable_observation",
+      error: null,
+    });
+    expect(fallbackDatabase.rendezvousHealthParameters[0]?.[23]).toBe(
+      "malformed_observation",
+    );
+    expect(fallbackDatabase.rendezvousHealthParameters[0]).not.toContain("private");
   });
 
   it("times out a stalled private binding without persisting source details", async () => {
