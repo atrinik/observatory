@@ -28,18 +28,24 @@ const canonical = new URL(
     <title>{title}</title>
   </head>
   <body>
-    <a class="skip-link" href="#content">Skip to dashboard</a>
+    <a class="skip-link" href="#content">
+      Skip to dashboard
+    </a>
     <header class="site-header">
       <div class="header-inner">
         <a class="brand" href="/" aria-label="Atrinik Observatory home">
-          <span class="brand-mark" aria-hidden="true"><i></i></span>
+          <span class="brand-mark" aria-hidden="true">
+            <i></i>
+          </span>
           <span class="brand-copy">
             <span class="brand-name">Atrinik</span>
             <span class="brand-subtitle">Observatory</span>
           </span>
         </a>
         <nav aria-label="Primary navigation">
-          <a href="#dashboard" aria-current="page">Dashboard</a>
+          <a href="#dashboard" aria-current="page">
+            Dashboard
+          </a>
           <a href="#services">Services</a>
           <a href="#about">About</a>
         </nav>
@@ -48,16 +54,21 @@ const canonical = new URL(
           href="https://github.com/atrinik/observatory"
           aria-label="View Observatory on GitHub"
         >
-          <span>GitHub</span><span aria-hidden="true">↗</span>
+          <span>GitHub</span>
+          <span aria-hidden="true">↗</span>
         </a>
       </div>
     </header>
-    <main id="content"><slot /></main>
+    <main id="content">
+      <slot />
+    </main>
     <footer class="site-footer">
       <div class="footer-inner">
         <div>
           <a class="brand brand--footer" href="/" aria-label="Atrinik Observatory home">
-            <span class="brand-mark" aria-hidden="true"><i></i></span>
+            <span class="brand-mark" aria-hidden="true">
+              <i></i>
+            </span>
             <span class="brand-copy">
               <span class="brand-name">Atrinik</span>
               <span class="brand-subtitle">Observatory</span>
@@ -69,13 +80,13 @@ const canonical = new URL(
           </p>
         </div>
         <div class="footer-links">
-          <a href="https://github.com/atrinik/atrinik/blob/main/components.json"
-            >Workspace manifest</a
-          >
+          <a href="https://github.com/atrinik/atrinik/blob/main/components.json">
+            Workspace manifest
+          </a>
           <a href="https://github.com/atrinik/observatory/issues">Issues</a>
-          <a href="https://github.com/atrinik/observatory/blob/main/docs/OPERATIONS.md"
-            >Operator docs</a
-          >
+          <a href="https://github.com/atrinik/observatory/blob/main/docs/OPERATIONS.md">
+            Operator docs
+          </a>
         </div>
       </div>
       <div class="footer-bottom">
