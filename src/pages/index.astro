@@ -148,9 +148,9 @@ const initialCoordinate =
         <div class="summary-content">
           <p class="summary-label">Unknown / stale</p>
           <p class="summary-number">
-            <span data-summary="unknown"
-              >{dashboard.summary.unknown + dashboard.summary.stale}</span
-            >
+            <span data-summary="unknown">
+              {dashboard.summary.unknown + dashboard.summary.stale}
+            </span>
             <span class="summary-unit">signals</span>
           </p>
         </div>
@@ -227,120 +227,115 @@ const initialCoordinate =
         <div class="signal-legend" aria-label="Delivery signal status legend">
           <span class="legend-title">Delivery signals</span>
           <span class="legend-item">
-            <span class="legend-marker legend-marker-passed" aria-hidden="true">✓</span>
+            <span class="legend-marker legend-marker-passed" aria-hidden="true">
+              ✓
+            </span>
             Passed
           </span>
           <span class="legend-item">
-            <span class="legend-marker legend-marker-attention" aria-hidden="true"
-              >!</span
-            >
+            <span class="legend-marker legend-marker-attention" aria-hidden="true">
+              !
+            </span>
             Attention
           </span>
           <span class="legend-item">
-            <span class="legend-marker legend-marker-unknown" aria-hidden="true">?</span
-            >
+            <span class="legend-marker legend-marker-unknown" aria-hidden="true">
+              ?
+            </span>
             Unknown
           </span>
           <span class="legend-item">
-            <span class="legend-marker legend-marker-not-tracked" aria-hidden="true"
-              >−</span
-            >
+            <span class="legend-marker legend-marker-not-tracked" aria-hidden="true">
+              −
+            </span>
             Not tracked
           </span>
         </div>
 
-        {
-          stackOrder.map((stack) => {
-            const coordinates = dashboard.coordinates.filter(
-              (coordinate) => coordinate.stack === stack,
-            );
-            return (
-              <section
-                id={`stack-${stack}`}
-                class="stack-panel"
-                role="tabpanel"
-                data-stack-panel={stack}
-                aria-labelledby={`stack-tab-${stack}`}
-                tabindex="0"
-                hidden={stack !== initialStack}
-              >
-                <div
-                  class="matrix"
-                  role="table"
-                  aria-label={`${stack} evidence matrix`}
-                >
-                  <div class="matrix-header" role="row">
-                    <span role="columnheader" class="matrix-stack-label">
-                      {stack === "default" ? "Next Generation" : "Classic stack"}
-                    </span>
-                    <span role="columnheader">Build</span>
-                    <span role="columnheader">Release</span>
-                    <span role="columnheader">Package</span>
-                    <span role="columnheader">Deploy</span>
-                  </div>
-                  <div class="matrix-body">
-                    {coordinates.map((coordinate) => (
-                      <article
-                        class="matrix-row"
-                        role="row"
-                        data-coordinate-id={coordinate.id}
-                        data-coordinate-status={coordinate.overall}
-                        data-coordinate-text={`${coordinate.component} ${coordinate.repository}`.toLowerCase()}
-                      >
-                        <div class="matrix-coordinate" role="cell">
-                          <button
-                            type="button"
-                            class="coordinate-select"
-                            data-coordinate-select={coordinate.id}
-                            aria-controls="coordinate-detail"
-                            aria-expanded="false"
-                          >
-                            <span class="coordinate-component">
-                              {coordinate.component}
-                            </span>
-                          </button>
-                          <a
-                            class="coordinate-repository"
-                            href={githubRepositoryUrl(coordinate.repository)}
-                          >
-                            {coordinate.repository} <span aria-hidden="true">↗</span>
-                          </a>
-                          <StatusIndicator
-                            status={coordinate.overall}
-                            context="overall"
-                          />
-                        </div>
-                        {coordinateSignals(coordinate).map(
-                          ({ key, label, evidence }) => (
-                            <div
-                              class="matrix-signal"
-                              role="cell"
-                              data-evidence-kind={key}
-                              data-column-label={label}
-                            >
-                              <StatusIndicator
-                                status={evidence.status}
-                                size="compact"
-                                context="evidence"
-                              />
-                              <span class="matrix-observed" data-evidence-observed>
-                                {evidence.status === "not-tracked"
-                                  ? "Not tracked"
-                                  : evidence.observedAt
-                                    ? "Observed"
-                                    : "No observation"}
-                              </span>
-                            </div>
-                          ),
-                        )}
-                      </article>
-                    ))}
-                  </div>
+        {stackOrder.map((stack) => {
+          const coordinates = dashboard.coordinates.filter(
+            (coordinate) => coordinate.stack === stack,
+          );
+          return (
+            <section
+              id={`stack-${stack}`}
+              class="stack-panel"
+              role="tabpanel"
+              data-stack-panel={stack}
+              aria-labelledby={`stack-tab-${stack}`}
+              tabindex="0"
+              hidden={stack !== initialStack}
+            >
+              <div class="matrix" role="table" aria-label={`${stack} evidence matrix`}>
+                <div class="matrix-header" role="row">
+                  <span role="columnheader" class="matrix-stack-label">
+                    {stack === "default" ? "Next Generation" : "Classic stack"}
+                  </span>
+                  <span role="columnheader">Build</span>
+                  <span role="columnheader">Release</span>
+                  <span role="columnheader">Package</span>
+                  <span role="columnheader">Deploy</span>
                 </div>
-              </section>
-            );
-          })
-        }
+                <div class="matrix-body">
+                  {coordinates.map((coordinate) => (
+                    <article
+                      class="matrix-row"
+                      role="row"
+                      data-coordinate-id={coordinate.id}
+                      data-coordinate-status={coordinate.overall}
+                      data-coordinate-text={`${coordinate.component} ${coordinate.repository}`.toLowerCase()}
+                    >
+                      <div class="matrix-coordinate" role="cell">
+                        <button
+                          type="button"
+                          class="coordinate-select"
+                          data-coordinate-select={coordinate.id}
+                          aria-controls="coordinate-detail"
+                          aria-expanded="false"
+                        >
+                          <span class="coordinate-component">
+                            {coordinate.component}
+                          </span>
+                        </button>
+                        <a
+                          class="coordinate-repository"
+                          href={githubRepositoryUrl(coordinate.repository)}
+                        >
+                          {coordinate.repository} <span aria-hidden="true">↗</span>
+                        </a>
+                        <StatusIndicator
+                          status={coordinate.overall}
+                          context="overall"
+                        />
+                      </div>
+                      {coordinateSignals(coordinate).map(({ key, label, evidence }) => (
+                        <div
+                          class="matrix-signal"
+                          role="cell"
+                          data-evidence-kind={key}
+                          data-column-label={label}
+                        >
+                          <StatusIndicator
+                            status={evidence.status}
+                            size="compact"
+                            context="evidence"
+                          />
+                          <span class="matrix-observed" data-evidence-observed>
+                            {evidence.status === "not-tracked"
+                              ? "Not tracked"
+                              : evidence.observedAt
+                                ? "Observed"
+                                : "No observation"}
+                          </span>
+                        </div>
+                      ))}
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </section>
+          );
+        })}
       </div>
       <div class="dashboard-rail">
         <section class="services-shell" id="services" aria-labelledby="services-title">
@@ -352,185 +347,177 @@ const initialCoordinate =
             <p class="section-note">Independent read-only surfaces</p>
           </div>
           <div class="service-grid">
-            {
-              dashboard.services.map((service) =>
-                isMetaserver(service) ? (
-                  <article
-                    class="service-card metaserver-card"
-                    data-service-id={service.id}
-                  >
-                    <div class="service-card-heading">
-                      <div class="service-icon service-icon-server" aria-hidden="true">
-                        <span />
-                      </div>
-                      <div class="service-card-main">
-                        <p class="service-kicker">Public service</p>
-                        <h3>{service.name}</h3>
-                        <a class="service-url" href={service.url}>
-                          Static directory + WebSocket signaling
-                        </a>
-                      </div>
-                      <StatusIndicator status={service.status} context="service" />
-                    </div>
-                    <div class="surface-list">
-                      <div class="surface-row" data-surface-id="listings">
-                        <div>
-                          <strong>Listings</strong>
-                          <span class="surface-summary" data-surface-summary>
-                            {service.surfaces.listings.availableFormats}/
-                            {service.surfaces.listings.requiredFormats.length} formats ·{" "}
-                            {service.surfaces.listings.status}
-                          </span>
-                        </div>
-                        <StatusIndicator
-                          status={service.surfaces.listings.status}
-                          context="service"
-                          size="compact"
-                        />
-                        <p data-surface-observed>
-                          {formatSummary(
-                            service.surfaces.listings.status,
-                            service.surfaces.listings.observedAt,
-                            service.surfaces.listings.ageSeconds,
-                          )}
-                        </p>
-                      </div>
-                      <div class="surface-row" data-surface-id="rendezvous">
-                        <div>
-                          <strong>Rendezvous rooms</strong>
-                          <span class="surface-summary" data-surface-summary>
-                            {rendezvousSurfaceSummary(service.surfaces.rendezvous)}
-                          </span>
-                        </div>
-                        <StatusIndicator
-                          status={service.surfaces.rendezvous.status}
-                          context="service"
-                          size="compact"
-                        />
-                        <p data-surface-observed>
-                          {rendezvousSurfaceObserved(service.surfaces.rendezvous)}
-                        </p>
-                      </div>
-                    </div>
-                    <details class="surface-details">
-                      <summary>
-                        Show format evidence and safe observation boundaries
-                      </summary>
-                      <div class="format-list" data-format-list>
-                        {service.surfaces.listings.formats.map((format) => (
-                          <div class="format-row" data-format={format.format}>
-                            <span>{format.label}</span>
-                            <StatusIndicator
-                              status={format.status}
-                              context="service"
-                              size="compact"
-                            />
-                            <span class="format-metric" data-format-response>
-                              {format.statusCode ?? "—"} · {format.responseMs ?? "—"}ms
-                              · {format.generation ?? "no generation"}
-                            </span>
-                            <a href={format.url}>Open listing ↗</a>
-                          </div>
-                        ))}
-                      </div>
-                      <p class="surface-boundary" data-rendezvous-boundary>
-                        Only the authenticated, versioned operator-safe aggregate is
-                        shown. This is not an active-room count, and no room, server ID,
-                        connection ID, candidate, source address, credential, or token
-                        is enumerated here.
-                      </p>
-                      <div class="rendezvous-evidence" data-rendezvous-evidence>
-                        <dl class="rendezvous-evidence-grid">
-                          <div>
-                            <dt>Source</dt>
-                            <dd data-rendezvous-source>
-                              {service.surfaces.rendezvous.observationSource ??
-                                "No validated source"}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Freshness</dt>
-                            <dd data-rendezvous-freshness>
-                              {service.surfaces.rendezvous.freshness.state} ·{" "}
-                              {service.surfaces.rendezvous.ageSeconds ?? "no age"}
-                              {service.surfaces.rendezvous.ageSeconds !== null
-                                ? "s"
-                                : ""}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Route / controls</dt>
-                            <dd data-rendezvous-route>
-                              {service.surfaces.rendezvous.routeStatus} /{" "}
-                              {service.surfaces.rendezvous.controlsStatus}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Admission</dt>
-                            <dd data-rendezvous-admission>
-                              {service.surfaces.rendezvous.admissionStatus} ·{" "}
-                              {
-                                service.surfaces.rendezvous
-                                  .recentAuthenticatedAdmissions
-                              }
-                              {" recent"}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Sessions</dt>
-                            <dd data-rendezvous-sessions>
-                              {service.surfaces.rendezvous.recentSessions.total} total
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Canary</dt>
-                            <dd data-rendezvous-canary>
-                              {service.surfaces.rendezvous.canary.type} ·{" "}
-                              {service.surfaces.rendezvous.canary.route} ·{" "}
-                              {service.surfaces.rendezvous.canary.authenticatedControl}{" "}
-                              · {service.surfaces.rendezvous.canary.recentAdmission}
-                            </dd>
-                          </div>
-                        </dl>
-                        <p class="rendezvous-session-outcomes" data-rendezvous-outcomes>
-                          {rendezvousSessionOutcomes(service.surfaces.rendezvous)}
-                        </p>
-                        <p class="rendezvous-reason" data-rendezvous-reason>
-                          Reason:{" "}
-                          {service.surfaces.rendezvous.reason ?? "not available"}
-                        </p>
-                      </div>
-                      {service.surfaces.rendezvous.evidenceUrl ? (
-                        <a
-                          class="surface-boundary-link"
-                          href={service.surfaces.rendezvous.evidenceUrl}
-                        >
-                          Read the rendezvous contract ↗
-                        </a>
-                      ) : null}
-                    </details>
-                  </article>
-                ) : (
-                  <article class="service-card" data-service-id={service.id}>
-                    <div class="service-icon" aria-hidden="true">
+            {dashboard.services.map((service) =>
+              isMetaserver(service) ? (
+                <article
+                  class="service-card metaserver-card"
+                  data-service-id={service.id}
+                >
+                  <div class="service-card-heading">
+                    <div class="service-icon service-icon-server" aria-hidden="true">
                       <span />
                     </div>
-                    <div class="service-body">
-                      <div class="service-title-row">
-                        <h3>{service.name}</h3>
-                        <StatusIndicator status={service.status} context="service" />
-                      </div>
+                    <div class="service-card-main">
+                      <p class="service-kicker">Public service</p>
+                      <h3>{service.name}</h3>
                       <a class="service-url" href={service.url}>
-                        {service.url} <span aria-hidden="true">↗</span>
+                        Static directory + WebSocket signaling
                       </a>
-                      <p class="service-observation" data-service-observed>
-                        No probe observation yet. Missing data is unknown.
+                    </div>
+                    <StatusIndicator status={service.status} context="service" />
+                  </div>
+                  <div class="surface-list">
+                    <div class="surface-row" data-surface-id="listings">
+                      <div>
+                        <strong>Listings</strong>
+                        <span class="surface-summary" data-surface-summary>
+                          {service.surfaces.listings.availableFormats}/
+                          {service.surfaces.listings.requiredFormats.length} formats ·{" "}
+                          {service.surfaces.listings.status}
+                        </span>
+                      </div>
+                      <StatusIndicator
+                        status={service.surfaces.listings.status}
+                        context="service"
+                        size="compact"
+                      />
+                      <p data-surface-observed>
+                        {formatSummary(
+                          service.surfaces.listings.status,
+                          service.surfaces.listings.observedAt,
+                          service.surfaces.listings.ageSeconds,
+                        )}
                       </p>
                     </div>
-                  </article>
-                ),
-              )
-            }
+                    <div class="surface-row" data-surface-id="rendezvous">
+                      <div>
+                        <strong>Rendezvous rooms</strong>
+                        <span class="surface-summary" data-surface-summary>
+                          {rendezvousSurfaceSummary(service.surfaces.rendezvous)}
+                        </span>
+                      </div>
+                      <StatusIndicator
+                        status={service.surfaces.rendezvous.status}
+                        context="service"
+                        size="compact"
+                      />
+                      <p data-surface-observed>
+                        {rendezvousSurfaceObserved(service.surfaces.rendezvous)}
+                      </p>
+                    </div>
+                  </div>
+                  <details class="surface-details">
+                    <summary>
+                      Show format evidence and safe observation boundaries
+                    </summary>
+                    <div class="format-list" data-format-list>
+                      {service.surfaces.listings.formats.map((format) => (
+                        <div class="format-row" data-format={format.format}>
+                          <span>{format.label}</span>
+                          <StatusIndicator
+                            status={format.status}
+                            context="service"
+                            size="compact"
+                          />
+                          <span class="format-metric" data-format-response>
+                            {format.statusCode ?? "—"} · {format.responseMs ?? "—"}ms ·{" "}
+                            {format.generation ?? "no generation"}
+                          </span>
+                          <a href={format.url}>Open listing ↗</a>
+                        </div>
+                      ))}
+                    </div>
+                    <p class="surface-boundary" data-rendezvous-boundary>
+                      Only the authenticated, versioned operator-safe aggregate is
+                      shown. This is not an active-room count, and no room, server ID,
+                      connection ID, candidate, source address, credential, or token is
+                      enumerated here.
+                    </p>
+                    <div class="rendezvous-evidence" data-rendezvous-evidence>
+                      <dl class="rendezvous-evidence-grid">
+                        <div>
+                          <dt>Source</dt>
+                          <dd data-rendezvous-source>
+                            {service.surfaces.rendezvous.observationSource ??
+                              "No validated source"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Freshness</dt>
+                          <dd data-rendezvous-freshness>
+                            {service.surfaces.rendezvous.freshness.state} ·{" "}
+                            {service.surfaces.rendezvous.ageSeconds ?? "no age"}
+                            {service.surfaces.rendezvous.ageSeconds !== null ? "s" : ""}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Route / controls</dt>
+                          <dd data-rendezvous-route>
+                            {service.surfaces.rendezvous.routeStatus} /{" "}
+                            {service.surfaces.rendezvous.controlsStatus}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Admission</dt>
+                          <dd data-rendezvous-admission>
+                            {service.surfaces.rendezvous.admissionStatus} ·{" "}
+                            {service.surfaces.rendezvous.recentAuthenticatedAdmissions}
+                            {" recent"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Sessions</dt>
+                          <dd data-rendezvous-sessions>
+                            {service.surfaces.rendezvous.recentSessions.total} total
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Canary</dt>
+                          <dd data-rendezvous-canary>
+                            {service.surfaces.rendezvous.canary.type} ·{" "}
+                            {service.surfaces.rendezvous.canary.route} ·{" "}
+                            {service.surfaces.rendezvous.canary.authenticatedControl} ·{" "}
+                            {service.surfaces.rendezvous.canary.recentAdmission}
+                          </dd>
+                        </div>
+                      </dl>
+                      <p class="rendezvous-session-outcomes" data-rendezvous-outcomes>
+                        {rendezvousSessionOutcomes(service.surfaces.rendezvous)}
+                      </p>
+                      <p class="rendezvous-reason" data-rendezvous-reason>
+                        Reason: {service.surfaces.rendezvous.reason ?? "not available"}
+                      </p>
+                    </div>
+                    {service.surfaces.rendezvous.evidenceUrl ? (
+                      <a
+                        class="surface-boundary-link"
+                        href={service.surfaces.rendezvous.evidenceUrl}
+                      >
+                        Read the rendezvous contract ↗
+                      </a>
+                    ) : null}
+                  </details>
+                </article>
+              ) : (
+                <article class="service-card" data-service-id={service.id}>
+                  <div class="service-icon" aria-hidden="true">
+                    <span />
+                  </div>
+                  <div class="service-body">
+                    <div class="service-title-row">
+                      <h3>{service.name}</h3>
+                      <StatusIndicator status={service.status} context="service" />
+                    </div>
+                    <a class="service-url" href={service.url}>
+                      {service.url} <span aria-hidden="true">↗</span>
+                    </a>
+                    <p class="service-observation" data-service-observed>
+                      No probe observation yet. Missing data is unknown.
+                    </p>
+                  </div>
+                </article>
+              ),
+            )}
           </div>
         </section>
 
@@ -557,9 +544,11 @@ const initialCoordinate =
                 </h3>
                 <a
                   data-detail-repository
-                  href={initialCoordinate
-                    ? githubRepositoryUrl(initialCoordinate.repository)
-                    : undefined}
+                  href={
+                    initialCoordinate
+                      ? githubRepositoryUrl(initialCoordinate.repository)
+                      : undefined
+                  }
                 >
                   {initialCoordinate ? "View on GitHub ↗" : "Awaiting GitHub evidence"}
                 </a>
@@ -570,58 +559,55 @@ const initialCoordinate =
               />
             </div>
             <div class="detail-grid">
-              {
-                signalDefinitions.map(([key, label, description]) => {
-                  const evidence = initialCoordinate?.[key];
-                  return (
-                    <article class="detail-signal" data-detail-signal={key}>
-                      <div class="detail-signal-heading">
-                        <div>
-                          <p class="detail-signal-label">{label}</p>
-                          <p class="detail-signal-description" data-detail-description>
-                            {key === "deployment" &&
-                            initialCoordinate?.deploymentApplicable === false
-                              ? "No deployment surface is configured for this coordinate."
-                              : description}
-                          </p>
-                        </div>
-                        <StatusIndicator
-                          status={evidence?.status ?? "unknown"}
-                          size="compact"
-                          context="evidence"
-                        />
+              {signalDefinitions.map(([key, label, description]) => {
+                const evidence = initialCoordinate?.[key];
+                return (
+                  <article class="detail-signal" data-detail-signal={key}>
+                    <div class="detail-signal-heading">
+                      <div>
+                        <p class="detail-signal-label">{label}</p>
+                        <p class="detail-signal-description" data-detail-description>
+                          {key === "deployment" &&
+                          initialCoordinate?.deploymentApplicable === false
+                            ? "No deployment surface is configured for this coordinate."
+                            : description}
+                        </p>
                       </div>
-                      <p class="detail-observed" data-detail-observed>
-                        {evidence?.status === "not-tracked"
-                          ? "Not tracked"
-                          : evidence?.observedAt
-                            ? "Observed"
-                            : "No observation"}
-                      </p>
-                      <div class="detail-evidence-links">
-                        <a data-detail-evidence-link>
-                          {evidence?.latest ? "View evidence ↗" : "No link yet"}
-                        </a>
-                        <span>
-                          <span class="history-label">Last good</span>
-                          <a data-detail-good>No record</a>
-                        </span>
-                        <span>
-                          <span class="history-label">Last failure</span>
-                          <a data-detail-failure>No record</a>
-                        </span>
-                      </div>
-                    </article>
-                  );
-                })
-              }
+                      <StatusIndicator
+                        status={evidence?.status ?? "unknown"}
+                        size="compact"
+                        context="evidence"
+                      />
+                    </div>
+                    <p class="detail-observed" data-detail-observed>
+                      {evidence?.status === "not-tracked"
+                        ? "Not tracked"
+                        : evidence?.observedAt
+                          ? "Observed"
+                          : "No observation"}
+                    </p>
+                    <div class="detail-evidence-links">
+                      <a data-detail-evidence-link>
+                        {evidence?.latest ? "View evidence ↗" : "No link yet"}
+                      </a>
+                      <span>
+                        <span class="history-label">Last good</span>
+                        <a data-detail-good>No record</a>
+                      </span>
+                      <span>
+                        <span class="history-label">Last failure</span>
+                        <a data-detail-failure>No record</a>
+                      </span>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
             <p class="detail-ref">
-              Ref: <span data-detail-ref
-                >{
-                  initialCoordinate?.build.latest?.ref ?? "Awaiting GitHub evidence"
-                }</span
-              >
+              Ref:{" "}
+              <span data-detail-ref>
+                {initialCoordinate?.build.latest?.ref ?? "Awaiting GitHub evidence"}
+              </span>
             </p>
           </div>
         </aside>
@@ -641,7 +627,9 @@ const initialCoordinate =
                 mutation controls are exposed.
               </p>
             </div>
-            <span class="about-chevron" aria-hidden="true">⌄</span>
+            <span class="about-chevron" aria-hidden="true">
+              ⌄
+            </span>
           </div>
         </section>
       </div>
