@@ -1,8 +1,9 @@
 # Cloudflare deployment contract
 
 Observatory has one Pages project for the static UI and Pages Functions, plus a
-small scheduled Worker for public-service probes. Both use D1, but preview and
-production use different databases and secrets.
+small scheduled production Worker for public-service probes. Preview and
+production use different D1 databases; only the protected production probe
+uses a private metaserver binding and secret.
 
 The checked-in files are the reviewable source of truth:
 
@@ -22,6 +23,10 @@ with a token or commit a secret. Production deployment is owned by the
 protected [GitHub Actions workflow](../.github/workflows/deploy.yml); a merge
 must not trigger an independent provider deployment before that workflow has
 applied the reviewed migrations.
+
+Workers Builds are disabled for both branches of the probe Worker. The
+`workersBuilds` section of the probe contract records that policy; the
+production release workflow is the only deployment owner.
 
 ## Provisioning
 
@@ -97,59 +102,45 @@ the webhook secret with the Pages secret store command above.
 
 ## Probe Worker
 
-Connect the same repository to Workers Builds for the preview worker only, with
-`src/probe-worker.ts` as the entrypoint. The checked-in
-`wrangler.probes.jsonc` names `atrinik-observatory-probes-preview`, uses the
-preview D1 binding, and contains no production environment. The dedicated
-`wrangler.probes.production.jsonc` names `atrinik-observatory-probes` and is
-selected only by the protected release workflow after the migration gate.
-Review builds must use the preview config and must not run production service
-probes. The production cron is `*/5 * * * *`; configure the same trigger from
-both config files rather than adding a dashboard-only schedule.
-The Worker probes the website and three active static listing aliases, then
-consumes rendezvous health through the private `RendezvousHealth` named Service
-Binding. The preview config binds `RENDEZVOUS_HEALTH` to
-`atrinik-metaserver-review-canary`; the production config binds it to
-`atrinik-metaserver`. Both configs require the separately provisioned
+The checked-in `wrangler.probes.jsonc` is a safe preview/local dry-run
+configuration. It uses the preview D1 binding, probes only public services, and
+contains no service binding or secret requirement. It is not deployed by
+Workers Builds and does not consume a review canary. If it is run explicitly,
+the missing private source is recorded as `unknown` rather than treated as a
+passing rendezvous signal.
+
+The dedicated `wrangler.probes.production.jsonc` names
+`atrinik-observatory-probes` and is selected only by the protected release
+workflow after the migration gate. The production Worker probes the website
+and three active static listing aliases, then consumes rendezvous health
+through the private `RendezvousHealth` named Service Binding to
+`atrinik-metaserver`. Only this config requires the separately provisioned
 `RENDEZVOUS_HEALTH_EXPORT_TOKEN` secret. The token is sent only to the exact
 internal contract URL and never reaches Pages, D1 raw payload storage, browser
 code, or logs. The public rendezvous route remains unprobed because it requires
 a server-specific identifier and is not an aggregate health contract.
 
-Provision the probe Worker secret independently for each environment; Wrangler
-prompts for the value, so do not place it in a command, file, or transcript:
+Provision the production probe Worker secret independently; Wrangler prompts
+for the value, so do not place it in a command, file, or transcript:
 
 ```sh
-npx wrangler secret put RENDEZVOUS_HEALTH_EXPORT_TOKEN -c wrangler.probes.jsonc
 npx wrangler secret put RENDEZVOUS_HEALTH_EXPORT_TOKEN -c wrangler.probes.production.jsonc
 ```
 
-For a separately authenticated preview deploy, the command is:
-
-```sh
-npx wrangler deploy -c wrangler.probes.jsonc
-```
-
-Do not configure a provider build to run `wrangler deploy` with the production
-config or `--env production` on pull requests. Such a build must be disabled or
-changed to the preview config before merging this change; the provider must not
-publish the production Worker independently of the protected release.
-
-The production Worker deploy is part of the protected GitHub Actions release
-after the production D1 migration succeeds. Do not connect Workers Builds or a
-provider dashboard directly to the production branch, because that would allow
-code to deploy before the migration gate.
+The production cron is `*/5 * * * *`, and its deploy is part of the protected
+GitHub Actions release after the production D1 migration succeeds. Do not
+connect Workers Builds to the probe Worker or allow a provider dashboard to
+publish it independently of that release gate.
 
 ## GitHub connection and previews
 
-Install the Cloudflare GitHub integration only for `atrinik/observatory`'s
-non-production branches. It must publish a Pages preview for each pull request
-and surface the preview URL in the pull request deployment/check status. Its
-preview binding is `atrinik-observatory-preview`; it must not receive the
-production database or webhook secret. The production branch is deployed only
-by `.github/workflows/deploy.yml` after the protected migration step. The probe
-Worker uses an isolated preview environment and does not receive production
-traffic.
+Use the Cloudflare Git integration for the Pages project only. It must publish
+a Pages preview for each pull request and surface the preview URL in the pull
+request deployment/check status. Its preview binding is
+`atrinik-observatory-preview`; it must not receive the production database or
+webhook secret. The probe Worker has no pull-request deployment. The production
+branch is deployed only by `.github/workflows/deploy.yml` after the protected
+migration step.
 
 Install an organization-level GitHub App/webhook scoped to the configured
 Atrinik repository allowlist, or install one repository-scoped webhook on each

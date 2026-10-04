@@ -125,18 +125,34 @@ if (
 ) {
   throw new Error("probe contract must separate preview and production configs");
 }
+if (
+  probesContract.workersBuilds?.nonProductionBranches !== false ||
+  probesContract.workersBuilds?.productionBranch !== false ||
+  probesContract.workersBuilds?.deploymentOwner !== "github-actions"
+) {
+  throw new Error("probe Worker deployments must be owned by protected GitHub Actions");
+}
 for (const marker of [
   '"name": "atrinik-observatory-probes-preview"',
   '"database_name": "atrinik-observatory-preview"',
   '"OBSERVATORY_ENV": "preview"',
   '"workers_dev": true',
-  '"binding": "RENDEZVOUS_HEALTH"',
-  '"service": "atrinik-metaserver-review-canary"',
-  '"entrypoint": "RendezvousHealth"',
-  '"required": ["RENDEZVOUS_HEALTH_EXPORT_TOKEN"]',
 ]) {
   if (!probesWrangler.includes(marker)) {
     throw new Error(`preview probe config is missing required contract: ${marker}`);
+  }
+}
+for (const marker of [
+  '"services"',
+  '"secrets"',
+  '"RENDEZVOUS_HEALTH"',
+  '"atrinik-metaserver-review-canary"',
+  '"RENDEZVOUS_HEALTH_EXPORT_TOKEN"',
+]) {
+  if (probesWrangler.includes(marker)) {
+    throw new Error(
+      `preview probe config must not require private rendezvous input: ${marker}`,
+    );
   }
 }
 if (
@@ -177,14 +193,15 @@ if (
   probesContract.rendezvousHealth?.entrypoint !== "RendezvousHealth" ||
   probesContract.rendezvousHealth?.url !==
     "https://internal.atrinik.invalid/v1/rendezvous-health" ||
-  probesContract.rendezvousHealth?.previewService !==
-    "atrinik-metaserver-review-canary" ||
   probesContract.rendezvousHealth?.productionService !== "atrinik-metaserver" ||
   probesContract.rendezvousHealth?.requiredSecret !==
     "RENDEZVOUS_HEALTH_EXPORT_TOKEN" ||
   probesContract.rendezvousHealth?.transport !== "private named Service Binding"
 ) {
   throw new Error("probe contract must pin the private rendezvous health binding");
+}
+if (Object.hasOwn(probesContract.rendezvousHealth ?? {}, "previewService")) {
+  throw new Error("probe contract must not configure a preview rendezvous service");
 }
 if (
   !packageManifest.scripts["deploy:dry-run"].includes("-c wrangler.probes.jsonc") ||

@@ -59,7 +59,9 @@ describe("aggregateDashboard", () => {
 
     expect(dashboard.coordinates[0]?.build.status).toBe("failed");
     expect(dashboard.coordinates[0]?.build.lastKnownGood?.id).toBe("older-pass");
-    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe("newer-failure");
+    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe(
+      "newer-failure",
+    );
     expect(dashboard.summary.attention).toBe(1);
   });
 
@@ -121,7 +123,9 @@ describe("aggregateDashboard", () => {
     );
 
     expect(dashboard.coordinates[0]?.build.status).toBe("passed");
-    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe("older-failure");
+    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe(
+      "older-failure",
+    );
     expect(dashboard.summary.healthy).toBe(0);
     expect(dashboard.summary.unknown).toBe(1);
   });
@@ -191,7 +195,9 @@ describe("aggregateDashboard", () => {
   );
 
   it("keeps scheduled service freshness independent from event evidence", () => {
-    const probe = SERVICE_PROBES.find((candidate) => candidate.surface === "service");
+    const probe = SERVICE_PROBES.find(
+      (candidate) => candidate.surface === "service",
+    );
     expect(probe).toBeDefined();
     if (!probe) return;
 
@@ -353,7 +359,9 @@ describe("aggregateDashboard", () => {
 
 describe("metaserver surfaces", () => {
   const now = new Date("2026-08-23T12:00:00.000Z");
-  const listingProbes = SERVICE_PROBES.filter((probe) => probe.surface === "listings");
+  const listingProbes = SERVICE_PROBES.filter(
+    (probe) => probe.surface === "listings",
+  );
 
   const listingObservation = (
     probeId: string,
@@ -504,7 +512,9 @@ describe("metaserver surfaces", () => {
         .filter((probe) => probe.format !== "xml")
         .map((probe) => listingObservation(probe.id)),
     ).services.find((candidate) => candidate.id === "metaserver");
-    expect(partial).toMatchObject({ surfaces: { listings: { status: "attention" } } });
+    expect(partial).toMatchObject({
+      surfaces: { listings: { status: "attention" } },
+    });
   });
 
   it("surfaces cross-format generation skew instead of false-passing", () => {
@@ -548,7 +558,10 @@ describe("metaserver surfaces", () => {
           observationSource: "private-service-binding",
           safeObservationAvailable: true,
           recentAuthenticatedAdmissions: 1,
-          recentSessions: { total: 2, outcomes: { completed: 1, internal_error: 1 } },
+          recentSessions: {
+            total: 2,
+            outcomes: { completed: 1, internal_error: 1 },
+          },
           canary: {
             type: "end_to_end",
             route: "reachable",
@@ -655,54 +668,57 @@ describe("metaserver surfaces", () => {
     });
   });
 
-  it("keeps the producer malformed-observation fallback as safe unknown", () => {
-    const service = dashboardFor(
-      [],
-      [
-        rendezvousObservation({
-          observationGeneration: 0,
-          sourceTimestamp: null,
-          windowStartedAt: null,
-          windowEndedAt: null,
-          freshnessState: "no_observation",
-          sourceStatus: "no_usable_observation",
-          recentAuthenticatedAdmissions: 0,
-          recentSessions: {
-            total: 0,
-            outcomes: {
-              completed: 0,
-              client_disconnected: 0,
-              session_expired: 0,
-              protocol_error: 0,
-              server_unavailable: 0,
-              server_replaced: 0,
-              authorization_failed: 0,
-              internal_error: 0,
+  it.each(["no_observation", "malformed_observation"] as const)(
+    "keeps the producer %s fallback unknown without a safe observation",
+    (reason) => {
+      const service = dashboardFor(
+        [],
+        [
+          rendezvousObservation({
+            observationGeneration: 0,
+            sourceTimestamp: null,
+            windowStartedAt: null,
+            windowEndedAt: null,
+            freshnessState: "no_observation",
+            sourceStatus: "no_usable_observation",
+            recentAuthenticatedAdmissions: 0,
+            recentSessions: {
+              total: 0,
+              outcomes: {
+                completed: 0,
+                client_disconnected: 0,
+                session_expired: 0,
+                protocol_error: 0,
+                server_unavailable: 0,
+                server_replaced: 0,
+                authorization_failed: 0,
+                internal_error: 0,
+              },
             },
-          },
-          canary: {
-            type: "none",
-            route: "not_observed",
-            authenticatedControl: "not_observed",
-            recentAdmission: "not_observed",
-            observedAt: null,
-          },
-          reason: "malformed_observation",
-          error: null,
-        }),
-      ],
-    ).services.find((candidate) => candidate.id === "metaserver");
-    if (!service || service.surface !== "metaserver")
-      throw new Error("missing metaserver");
+            canary: {
+              type: "none",
+              route: "not_observed",
+              authenticatedControl: "not_observed",
+              recentAdmission: "not_observed",
+              observedAt: null,
+            },
+            reason,
+            error: null,
+          }),
+        ],
+      ).services.find((candidate) => candidate.id === "metaserver");
+      if (!service || service.surface !== "metaserver")
+        throw new Error("missing metaserver");
 
-    expect(service.surfaces.rendezvous).toMatchObject({
-      status: "unknown",
-      safeObservationAvailable: true,
-      reason: "malformed_observation",
-      observedAt: null,
-      error: "No positive rendezvous health evidence is available.",
-    });
-  });
+      expect(service.surfaces.rendezvous).toMatchObject({
+        status: "unknown",
+        safeObservationAvailable: false,
+        reason,
+        observedAt: null,
+        error: "No positive rendezvous health evidence is available.",
+      });
+    },
+  );
 
   it.each([
     [
