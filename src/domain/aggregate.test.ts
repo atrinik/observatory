@@ -1,3 +1,4 @@
+import { validateClassicRendezvous } from "../../scripts/verify-production.mjs";
 import { describe, expect, it } from "vitest";
 import { aggregateDashboard } from "./aggregate";
 import { SERVICE_PROBES } from "./components";
@@ -705,10 +706,12 @@ describe("metaserver surfaces", () => {
       expect(service.surfaces.rendezvous).toMatchObject({
         status: "unknown",
         safeObservationAvailable: false,
+        observationSource: null,
         reason,
         observedAt: null,
         error: "No positive rendezvous health evidence is available.",
       });
+      expect(() => validateClassicRendezvous({ services: [service] })).not.toThrow();
     },
   );
 

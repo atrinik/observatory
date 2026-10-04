@@ -561,7 +561,8 @@ function rendezvousSurfaceSummary(
     routeStatus,
     controlsStatus,
     admissionStatus,
-    observationSource: RENDEZVOUS_OBSERVATION_SOURCE,
+    observationSource:
+      observation.sourceTimestamp === null ? null : RENDEZVOUS_OBSERVATION_SOURCE,
     safeObservationAvailable: observation.sourceTimestamp !== null,
     recentAuthenticatedAdmissions: observation.recentAuthenticatedAdmissions,
     recentSessions: {
