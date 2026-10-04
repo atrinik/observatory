@@ -59,9 +59,7 @@ describe("aggregateDashboard", () => {
 
     expect(dashboard.coordinates[0]?.build.status).toBe("failed");
     expect(dashboard.coordinates[0]?.build.lastKnownGood?.id).toBe("older-pass");
-    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe(
-      "newer-failure",
-    );
+    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe("newer-failure");
     expect(dashboard.summary.attention).toBe(1);
   });
 
@@ -123,9 +121,7 @@ describe("aggregateDashboard", () => {
     );
 
     expect(dashboard.coordinates[0]?.build.status).toBe("passed");
-    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe(
-      "older-failure",
-    );
+    expect(dashboard.coordinates[0]?.build.mostRecentFailure?.id).toBe("older-failure");
     expect(dashboard.summary.healthy).toBe(0);
     expect(dashboard.summary.unknown).toBe(1);
   });
@@ -195,9 +191,7 @@ describe("aggregateDashboard", () => {
   );
 
   it("keeps scheduled service freshness independent from event evidence", () => {
-    const probe = SERVICE_PROBES.find(
-      (candidate) => candidate.surface === "service",
-    );
+    const probe = SERVICE_PROBES.find((candidate) => candidate.surface === "service");
     expect(probe).toBeDefined();
     if (!probe) return;
 
@@ -359,9 +353,7 @@ describe("aggregateDashboard", () => {
 
 describe("metaserver surfaces", () => {
   const now = new Date("2026-08-23T12:00:00.000Z");
-  const listingProbes = SERVICE_PROBES.filter(
-    (probe) => probe.surface === "listings",
-  );
+  const listingProbes = SERVICE_PROBES.filter((probe) => probe.surface === "listings");
 
   const listingObservation = (
     probeId: string,

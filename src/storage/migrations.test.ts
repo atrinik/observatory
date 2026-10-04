@@ -44,10 +44,7 @@ function emptyObservation(id: string, reason: string | null, error: string | nul
   };
 }
 
-function insertObservation(
-  database: DatabaseSync,
-  row: Record<string, SQLInputValue>,
-) {
+function insertObservation(database: DatabaseSync, row: Record<string, SQLInputValue>) {
   database
     .prepare(
       `INSERT INTO rendezvous_health_observations (${Object.keys(row).join(",")}) VALUES (${Object.keys(
@@ -197,18 +194,15 @@ describe("rendezvous fallback migration", () => {
       );
       const signature = `sha256=${Buffer.from(digest).toString("hex")}`;
       async function deliver(signatureHeader: string) {
-        const request = new Request(
-          "https://observatory.invalid/api/github/webhook",
-          {
-            method: "POST",
-            body,
-            headers: {
-              "x-github-delivery": "migration-smoke",
-              "x-github-event": "workflow_run",
-              "x-hub-signature-256": signatureHeader,
-            },
+        const request = new Request("https://observatory.invalid/api/github/webhook", {
+          method: "POST",
+          body,
+          headers: {
+            "x-github-delivery": "migration-smoke",
+            "x-github-event": "workflow_run",
+            "x-hub-signature-256": signatureHeader,
           },
-        );
+        });
         return onRequestPost({
           request,
           env: { DB: d1Adapter(database), GITHUB_WEBHOOK_SECRET: secret },
