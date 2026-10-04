@@ -582,7 +582,11 @@ async function fetchRendezvousHealthObservation(
       "application/json"
     ) {
       await discardRendezvousResponseBody(response);
-      return unavailableRendezvousHealthObservation(id, receivedAt, "malformed_source");
+      return unavailableRendezvousHealthObservation(
+        id,
+        receivedAt,
+        "source_invalid_headers",
+      );
     }
 
     const payload = await readBoundedJson(
@@ -602,7 +606,8 @@ async function fetchRendezvousHealthObservation(
         receivedAt,
         payload,
         Math.floor(now.getTime() / 1_000),
-      ) ?? unavailableRendezvousHealthObservation(id, receivedAt, "malformed_source")
+      ) ??
+      unavailableRendezvousHealthObservation(id, receivedAt, "source_invalid_payload")
     );
   } finally {
     clearTimeout(timeout);

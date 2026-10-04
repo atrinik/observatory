@@ -97,15 +97,19 @@ the metaserver-worker handoff. A successful response is validated against the
 exact key set, bounded counter limits, five-minute window, freshness claim,
 canary dimensions, and derived status before any field is persisted.
 
-Migration `0006_rendezvous_health_observations.sql` stores append-only normalized
-observations. It contains only timestamps, the bounded authenticated-admission
-counter, the eight bounded session outcome counters, canary dimensions, a
-versioned source status/reason, and fixed source error codes. Raw responses and
-credentials are never stored. Missing, unauthorized, unavailable, oversized,
-malformed, or internally inconsistent source data becomes a safe `unknown`
-projection; it never becomes a pass. A fresh positive authenticated admission,
-completed session, or passing end-to-end canary becomes `passed`; an explicit
-canary failure becomes `failed`; an observation older than 300 seconds becomes
+Migrations `0006_rendezvous_health_observations.sql` and
+`0007_rendezvous_health_fallback_contract.sql` store append-only normalized
+observations. The forward compatibility migration preserves the existing rows
+while allowing the versioned `malformed_observation` empty result and distinct
+`source_invalid_headers` / `source_invalid_payload` diagnostics. The table
+contains only timestamps, the bounded authenticated-admission counter, the eight
+bounded session outcome counters, canary dimensions, a versioned source
+status/reason, and fixed source error codes. Raw responses and credentials are
+never stored. Missing, unauthorized, unavailable, oversized, malformed, or
+internally inconsistent source data becomes a safe `unknown` projection; it
+never becomes a pass. A fresh positive authenticated admission, completed
+session, or passing end-to-end canary becomes `passed`; an explicit canary
+failure becomes `failed`; an observation older than 300 seconds becomes
 `stale`.
 
 The surface exposes source freshness and age, route/control/admission signals,
