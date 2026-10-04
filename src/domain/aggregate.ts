@@ -424,6 +424,12 @@ function rendezvousErrorMessage(
   if (observation.error === "source_unavailable") {
     return "Private rendezvous health source is unavailable.";
   }
+  if (observation.error === "source_invalid_headers") {
+    return "Private rendezvous health source returned invalid response headers.";
+  }
+  if (observation.error === "source_invalid_payload") {
+    return "Private rendezvous health source returned an invalid payload.";
+  }
   if (observation.error === "malformed_source") {
     return "Private rendezvous health source returned malformed data.";
   }
@@ -555,8 +561,9 @@ function rendezvousSurfaceSummary(
     routeStatus,
     controlsStatus,
     admissionStatus,
-    observationSource: RENDEZVOUS_OBSERVATION_SOURCE,
-    safeObservationAvailable: true,
+    observationSource:
+      observation.sourceTimestamp === null ? null : RENDEZVOUS_OBSERVATION_SOURCE,
+    safeObservationAvailable: observation.sourceTimestamp !== null,
     recentAuthenticatedAdmissions: observation.recentAuthenticatedAdmissions,
     recentSessions: {
       total: observation.recentSessions.total,

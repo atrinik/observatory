@@ -1,3 +1,4 @@
+import { validateClassicRendezvous } from "../../scripts/verify-production.mjs";
 import { describe, expect, it } from "vitest";
 import { aggregateDashboard } from "./aggregate";
 import { SERVICE_PROBES } from "./components";
@@ -504,7 +505,9 @@ describe("metaserver surfaces", () => {
         .filter((probe) => probe.format !== "xml")
         .map((probe) => listingObservation(probe.id)),
     ).services.find((candidate) => candidate.id === "metaserver");
-    expect(partial).toMatchObject({ surfaces: { listings: { status: "attention" } } });
+    expect(partial).toMatchObject({
+      surfaces: { listings: { status: "attention" } },
+    });
   });
 
   it("surfaces cross-format generation skew instead of false-passing", () => {
@@ -548,7 +551,10 @@ describe("metaserver surfaces", () => {
           observationSource: "private-service-binding",
           safeObservationAvailable: true,
           recentAuthenticatedAdmissions: 1,
-          recentSessions: { total: 2, outcomes: { completed: 1, internal_error: 1 } },
+          recentSessions: {
+            total: 2,
+            outcomes: { completed: 1, internal_error: 1 },
+          },
           canary: {
             type: "end_to_end",
             route: "reachable",
@@ -652,6 +658,119 @@ describe("metaserver surfaces", () => {
       safeObservationAvailable: false,
       observationSource: null,
       reason: "malformed_observation",
+    });
+  });
+
+  it.each(["no_observation", "malformed_observation"] as const)(
+    "keeps the producer %s fallback unknown without a safe observation",
+    (reason) => {
+      const service = dashboardFor(
+        [],
+        [
+          rendezvousObservation({
+            observationGeneration: 0,
+            sourceTimestamp: null,
+            windowStartedAt: null,
+            windowEndedAt: null,
+            freshnessState: "no_observation",
+            sourceStatus: "no_usable_observation",
+            recentAuthenticatedAdmissions: 0,
+            recentSessions: {
+              total: 0,
+              outcomes: {
+                completed: 0,
+                client_disconnected: 0,
+                session_expired: 0,
+                protocol_error: 0,
+                server_unavailable: 0,
+                server_replaced: 0,
+                authorization_failed: 0,
+                internal_error: 0,
+              },
+            },
+            canary: {
+              type: "none",
+              route: "not_observed",
+              authenticatedControl: "not_observed",
+              recentAdmission: "not_observed",
+              observedAt: null,
+            },
+            reason,
+            error: null,
+          }),
+        ],
+      ).services.find((candidate) => candidate.id === "metaserver");
+      if (!service || service.surface !== "metaserver")
+        throw new Error("missing metaserver");
+
+      expect(service.surfaces.rendezvous).toMatchObject({
+        status: "unknown",
+        safeObservationAvailable: false,
+        observationSource: null,
+        reason,
+        observedAt: null,
+        error: "No positive rendezvous health evidence is available.",
+      });
+      expect(() => validateClassicRendezvous({ services: [service] })).not.toThrow();
+    },
+  );
+
+  it.each([
+    [
+      "invalid response headers",
+      "source_invalid_headers" as const,
+      "Private rendezvous health source returned invalid response headers.",
+    ],
+    [
+      "invalid payload",
+      "source_invalid_payload" as const,
+      "Private rendezvous health source returned an invalid payload.",
+    ],
+  ])("keeps %s diagnostics bounded and distinct", (_label, error, message) => {
+    const service = dashboardFor(
+      [],
+      [
+        rendezvousObservation({
+          sourceStatus: null,
+          observationGeneration: 0,
+          sourceTimestamp: null,
+          windowStartedAt: null,
+          windowEndedAt: null,
+          freshnessState: "no_observation",
+          recentAuthenticatedAdmissions: 0,
+          recentSessions: {
+            total: 0,
+            outcomes: {
+              completed: 0,
+              client_disconnected: 0,
+              session_expired: 0,
+              protocol_error: 0,
+              server_unavailable: 0,
+              server_replaced: 0,
+              authorization_failed: 0,
+              internal_error: 0,
+            },
+          },
+          canary: {
+            type: "none",
+            route: "not_observed",
+            authenticatedControl: "not_observed",
+            recentAdmission: "not_observed",
+            observedAt: null,
+          },
+          reason: null,
+          error,
+        }),
+      ],
+    ).services.find((candidate) => candidate.id === "metaserver");
+    if (!service || service.surface !== "metaserver")
+      throw new Error("missing metaserver");
+
+    expect(service.surfaces.rendezvous).toMatchObject({
+      status: "unknown",
+      reason: null,
+      error: message,
+      safeObservationAvailable: false,
     });
   });
 });
