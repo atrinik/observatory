@@ -48,3 +48,7 @@ node --test test-node/audit-*.node.mjs
 When changing a migration, also apply it to a local D1 database and test a
 signed webhook fixture. When changing Cloudflare configuration, validate both
 the Pages and probe Worker environments and update `docs/DEPLOYMENT.md`.
+
+Dependency review is advisory. Before merge, the Codex implementer reads its PR
+comment or job summary, fixes actionable introduced dependency risk, or records
+explicit maintainer acceptance of existing risk.
